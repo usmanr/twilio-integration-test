@@ -9,10 +9,10 @@ const BASE_URL = process.env.BASE_URL || "https://api.hipages.com.au";
  * Triggered when Customer calls Virtual Number.
  */
 export const handleIncomingCall = async (req: Request, res: Response) => {
-  const { CallSid, From, To } = req.body;
+  const { callsid, from, to } = req.body;
   
   // A. Lookup who this virtual number belongs to
-  const tradie = await db.getTradieByVirtualNumber(To);
+  const tradie = await db.getTradieByVirtualNumber(to);
 
   const twiml = new VoiceResponse();
 
@@ -25,7 +25,7 @@ export const handleIncomingCall = async (req: Request, res: Response) => {
   }
 
   // B. Log the call start
-  await db.logCall(CallSid, From, To, "RECEIVED");
+  await db.logCall(callsid, from, to, "RECEIVED");
 
   // C. Construct TwiML
   //    - Record the call
@@ -53,11 +53,11 @@ export const handleIncomingCall = async (req: Request, res: Response) => {
  * Triggered when the <Dial> finishes (either answered or missed).
  */
 export const handleCallCompleted = async (req: Request, res: Response) => {
-  const { DialCallStatus, To } = req.body;
+  const { dialcallstatus, to } = req.body;
   const twiml = new VoiceResponse();
 
   // If the Tradie didn't pick up (busy, no-answer, failed)
-  if (["busy", "no-answer", "failed", "canceled"].includes(DialCallStatus)) {
+  if (["busy", "no-answer", "failed", "canceled"].includes(dialcallstatus)) {
     
     twiml.say({ voice: "Polly.Nicole", language: "en-AU" }, 
       "The tradie is currently unavailable. Please leave a message after the beep."
@@ -85,21 +85,21 @@ export const handleCallCompleted = async (req: Request, res: Response) => {
  * Triggered by Twilio when text is ready (could be 1 min later).
  */
 export const handleTranscription = async (req: Request, res: Response) => {
-  const { CallSid, TranscriptionText, To } = req.body;
+  const { callsid, transcriptiontext, to } = req.body;
 
-  console.log(`[WEBHOOK] Received transcription for ${CallSid}`);
+  console.log(`[WEBHOOK] Received transcription for ${callsid}`);
 
   // A. Update DB
-  await db.updateCallRecord(CallSid, { 
-    transcript: TranscriptionText, 
+  await db.updateCallRecord(callsid, { 
+    transcript: transcriptiontext, 
     status: "PROCESSED" 
   });
 
   // B. AI Analysis
-  const analysis = await aiService.analyzeTranscript(TranscriptionText);
+  const analysis = await aiService.analyzeTranscript(transcriptiontext);
 
   if (analysis.isJob) {
-    const tradie = await db.getTradieByVirtualNumber(To);
+    const tradie = await db.getTradieByVirtualNumber(to);
     
     if (tradie) {
       if (tradie.autoCreateJobs) {

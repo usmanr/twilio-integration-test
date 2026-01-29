@@ -3,6 +3,7 @@ import * as dotenv from "dotenv"; // Corrected import for CommonJS modules
 
 import express from "express";
 import routes from "./routes"
+import { lowercaseBodyKeys } from "./middleware";
 
 dotenv.config();
 
@@ -11,6 +12,10 @@ const PORT = process.env.PORT || 3000;
 
 app.use(express.json());
 app.use(express.urlencoded({ extended: false })); // for Twilio's form-urlencoded data
+
+// Apply middleware to make all req.body keys lowercase for case-insensitivity
+app.use(lowercaseBodyKeys);
+
 // Mount Routes
 app.use("/webhooks", routes);
 
