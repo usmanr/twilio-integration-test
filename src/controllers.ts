@@ -1,8 +1,8 @@
 import { Request, Response } from "express";
 import VoiceResponse from "twilio/lib/twiml/VoiceResponse";
-import { db, aiService, smsService } from "./services";
+import { db, aiService, smsService, s3Service, presignedUrlService } from "./services";
 
-const BASE_URL = process.env.BASE_URL || "https://twilio-integration-test-production.up.railway.app";
+const BASE_URL = process.env.BASE_URL || `http://localhost:${process.env.PORT || 3000}`;
 
 /**
  * 1. INCOMING CALL HANDLER
@@ -125,6 +125,102 @@ export const handleTranscription = async (req: Request, res: Response) => {
 export const handleGoodbye = (req: Request, res: Response) => {
   const twiml = new VoiceResponse();
   twiml.say("Thank you. Goodbye.");
+  twiml.hangup();
+  res.type("text/xml").send(twiml.toString());
+};
+
+/**
+ * 5. IVR INCOMING CALL HANDLER
+ * Returns a TwiML response with a <Gather> to collect user input.
+ */
+export const getIncomingCallWithIVRResponse = (req: Request, res: Response) => {
+  const twiml = new VoiceResponse();
+  const gather = twiml.gather({
+    numDigits: 1,
+    action: `${BASE_URL}/webhooks/voice/ivr-selection`,
+    method: 'POST',
+  });
+  gather.say(
+    { voice: "Polly.Nicole", language: "en-AU" },
+    "Thanks for calling Micro electrician, please press 1 if you want to auto log a call, press 2 if you wish to speak to us directly"
+  );
+
+  // If the user doesn't enter anything, loop back to the beginning.
+  twiml.redirect(`${BASE_URL}/webhooks/voice/ivr-incoming`);
+
+  res.type("text/xml").send(twiml.toString());
+};
+
+/**
+ * 6. IVR SELECTION HANDLER
+ * Handles the digit pressed by the user from the <Gather> verb.
+ */
+export const handleIvrSelection = async (req: Request, res: Response) => {
+  const { digits, to } = req.body;
+  const twiml = new VoiceResponse();
+
+  if (digits === '1') {
+    twiml.say(
+      { voice: "Polly.Nicole", language: "en-AU" },
+      "record your message after the beep. when you are done, hangup"
+    );
+    twiml.record({
+      action: `${BASE_URL}/webhooks/voice/ivr-recording-completed`,
+      method: 'POST',
+      transcribe: true,
+      playBeep: true,
+    });
+  } else if (digits === '2') {
+    // Forward the call to the tradie if found, otherwise hang up.
+    const tradie = await db.getTradieByVirtualNumber(to);
+    if (tradie) {
+      twiml.say(
+        { voice: "Polly.Nicole", language: "en-AU" },
+        `Connecting you to ${tradie.name}.`
+      );
+      twiml.dial().number(tradie.realMobile);
+    } else {
+      // As requested, hang up if the number is not assigned to a tradie.
+      twiml.hangup();
+    }
+  } else {
+    // Handle invalid input
+    twiml.say(
+      { voice: "Polly.Nicole", language: "en-AU" },
+      "Sorry, that's not a valid choice."
+    );
+    twiml.redirect(`${BASE_URL}/webhooks/voice/ivr-incoming`);
+  }
+
+  res.type("text/xml").send(twiml.toString());
+};
+
+/**
+ * 7. IVR RECORDING WEBHOOK HANDLER
+ * This is the 'action' URL for the <Record> verb in the IVR.
+ * It handles uploading the recording and transcript to S3 via pre-signed URLs.
+ */
+export const handleIvrRecordingCompleted = async (req: Request, res: Response) => {
+  const { from, recordingurl: recordingUrl, transcriptiontext: transcript, transcriptionUrl: transcriptUrl, allsid: callSid, to, recordingduration: recordingDuration } = req.body;
+  console.log(`[WEBHOOK] IVR Recording completed from ${from} for call ${callSid}, recording URL: ${recordingUrl}, duration: ${recordingDuration}, transcript URL: ${transcriptUrl}, transcript: ${transcript}`);
+  if (recordingUrl){
+      const recordingData = await s3Service.fetchRecording(recordingUrl);
+    // 3. Upload to S3
+    await s3Service.uploadRecording(recordingData, 'audio/wav');
+  }
+
+
+  // --- Upload Transcript (if it exists) ---
+  if (transcript) {
+    await s3Service.uploadTranscript(transcript, 'text/plain');
+  }
+
+  // Log the event in our mock DB
+  await db.logCall(callSid, from, to, "IVR_RECORDING_COMPLETED");
+
+  // End the call
+  const twiml = new VoiceResponse();
+  twiml.say({ voice: "Polly.Nicole", language: "en-AU" }, "Thank you, your message has been saved. Goodbye.");
   twiml.hangup();
   res.type("text/xml").send(twiml.toString());
 };
