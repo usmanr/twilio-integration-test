@@ -2,7 +2,7 @@ import { Request, Response } from "express";
 import VoiceResponse from "twilio/lib/twiml/VoiceResponse";
 import { db, aiService, smsService } from "./services";
 
-const BASE_URL = process.env.BASE_URL || "https://api.hipages.com.au";
+const BASE_URL = process.env.BASE_URL || "https://twilio-integration-test-production.up.railway.app";
 
 /**
  * 1. INCOMING CALL HANDLER
