@@ -32,8 +32,6 @@ app.listen(PORT, () => {
   console.log(` - POST /webhooks/voice/ivr-incoming`);
   console.log(` - POST /webhooks/voice/ivr-selection`);
   console.log(` - POST /webhooks/voice/ivr-recording-completed`);
-  console.log(` - POST /webhooks/voice/ivr-incoming`);
-  console.log(` - POST /webhooks/voice/ivr-selection`);
-  console.log(` - POST /webhooks/voice/ivr-recording-completed`);
+  console.log(` - POST /webhooks/voice/ivr-transcription-completed`);
   console.log(` - GET  /ping`);
 });

@@ -1,12 +1,12 @@
 import { Router } from "express";
 import { 
   handleIncomingCall, 
-  handleCallCompleted, 
   handleTranscription,
   handleGoodbye,
   getIncomingCallWithIVRResponse,
   handleIvrSelection,
-  handleIvrRecordingCompleted
+  handleIvrRecordingCompleted,
+  handleIvrTranscriptionCompleted
 } from "./controllers";
 
 const router = Router();
@@ -15,7 +15,7 @@ const router = Router();
 router.post("/voice/incoming", handleIncomingCall);
 
 // Endpoint for <Dial> action (Missed call logic)
-router.post("/voice/completed", handleCallCompleted);
+router.post("/voice/completed", handleGoodbye);
 
 // Endpoint for Transcription Callback
 router.post("/voice/transcription", handleTranscription);
@@ -32,5 +32,8 @@ router.post("/voice/ivr-selection", handleIvrSelection);
 
 // 3. Webhook for when the recording from the IVR is complete
 router.post("/voice/ivr-recording-completed", handleIvrRecordingCompleted);
+
+// 4. Webhook for when the transcription from the IVR is complete
+router.post("/voice/ivr-transcription-completed", handleIvrTranscriptionCompleted);
 
 export default router;

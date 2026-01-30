@@ -49,38 +49,6 @@ export const handleIncomingCall = async (req: Request, res: Response) => {
 };
 
 /**
- * 2. CALL COMPLETION HANDLER (The 'Action' URL)
- * Triggered when the <Dial> finishes (either answered or missed).
- */
-export const handleCallCompleted = async (req: Request, res: Response) => {
-  const { dialcallstatus, to } = req.body;
-  const twiml = new VoiceResponse();
-
-  // If the Tradie didn't pick up (busy, no-answer, failed)
-  if (["busy", "no-answer", "failed", "canceled"].includes(dialcallstatus)) {
-    
-    twiml.say({ voice: "Polly.Nicole", language: "en-AU" }, 
-      "The tradie is currently unavailable. Please leave a message after the beep."
-    );
-
-    // Record Voicemail
-    twiml.record({
-      transcribe: true,
-      transcribeCallback: `${BASE_URL}/webhooks/voice/transcription`,
-      maxLength: 120,
-      playBeep: true,
-      action: `${BASE_URL}/webhooks/voice/goodbye` // Just hangup after recording
-    });
-
-  } else {
-    // Call was successful, just hangup
-    twiml.hangup();
-  }
-
-  res.type("text/xml").send(twiml.toString());
-};
-
-/**
  * 3. TRANSCRIPTION HANDLER (Async)
  * Triggered by Twilio when text is ready (could be 1 min later).
  */
@@ -104,7 +72,7 @@ export const handleTranscription = async (req: Request, res: Response) => {
     if (tradie) {
       if (tradie.autoCreateJobs) {
         // Auto-Create
-        await db.createJob(tradie.id, analysis.summary);
+        // await db.createJob(tradie.id, analysis.summary);
       } else {
         // Manual Confirm via SMS
         await smsService.sendConfirmation(
@@ -165,12 +133,18 @@ export const handleIvrSelection = async (req: Request, res: Response) => {
       "record your message after the beep. when you are done, hangup"
     );
     twiml.record({
-      action: `${BASE_URL}/webhooks/voice/ivr-recording-completed`,
+      action: `${BASE_URL}/webhooks/voice/completed`,
       method: 'POST',
       transcribe: true,
+      recordingStatusCallback: `${BASE_URL}/webhooks/voice/ivr-recording-completed`,
+      recordingStatusCallbackEvent: ['completed'],
+      recordingStatusCallbackMethod: 'POST',
+      transcribeCallback: `${BASE_URL}/webhooks/voice/ivr-transcription-completed`,
       playBeep: true,
     });
   } else if (digits === '2') {
+    twiml.dial().number(to);
+    /*
     // Forward the call to the tradie if found, otherwise hang up.
     const tradie = await db.getTradieByVirtualNumber(to);
     if (tradie) {
@@ -182,7 +156,7 @@ export const handleIvrSelection = async (req: Request, res: Response) => {
     } else {
       // As requested, hang up if the number is not assigned to a tradie.
       twiml.hangup();
-    }
+    }*/
   } else {
     // Handle invalid input
     twiml.say(
@@ -195,35 +169,26 @@ export const handleIvrSelection = async (req: Request, res: Response) => {
   res.type("text/xml").send(twiml.toString());
 };
 
-/**
- * 7. IVR RECORDING WEBHOOK HANDLER
- * This is the 'action' URL for the <Record> verb in the IVR.
- * It handles uploading the recording and transcript to S3 via pre-signed URLs.
- */
 export const handleIvrRecordingCompleted = async (req: Request, res: Response) => {
-  const { from, recordingurl: recordingUrl, transcriptiontext: transcript, transcriptionUrl: transcriptUrl, allsid: callSid, to, recordingduration: recordingDuration } = req.body;
+  // const { from, recordingurl: recordingUrl, transcriptiontext: transcript, transcriptionUrl: transcriptUrl, allsid: callSid, to, recordingduration: recordingDuration } = req.body;
   // onsole.log(`[WEBHOOK] IVR Recording completed from ${from} for call ${callSid}, recording URL: ${recordingUrl}, duration: ${recordingDuration}, transcript URL: ${transcriptUrl}, transcript: ${transcript}`);
   console.log("IVR Recording completed: Full request body:", JSON.stringify(req.body, null, 2));
-  return;
   
-  if (recordingUrl){
-      const recordingData = await s3Service.fetchRecording(recordingUrl);
-    // 3. Upload to S3
-    await s3Service.uploadRecording(recordingData, 'audio/wav');
-  }
-
-
-  // --- Upload Transcript (if it exists) ---
-  if (transcript) {
-    await s3Service.uploadTranscript(transcript, 'text/plain');
-  }
-
-  // Log the event in our mock DB
-  await db.logCall(callSid, from, to, "IVR_RECORDING_COMPLETED");
-
   // End the call
   const twiml = new VoiceResponse();
   twiml.say({ voice: "Polly.Nicole", language: "en-AU" }, "Thank you, your message has been saved. Goodbye.");
+  twiml.hangup();
+  res.type("text/xml").send(twiml.toString());
+};
+
+
+export const handleIvrTranscriptionCompleted = async (req: Request, res: Response) => {
+  // const { from, recordingurl: recordingUrl, transcriptiontext: transcript, transcriptionUrl: transcriptUrl, allsid: callSid, to, recordingduration: recordingDuration } = req.body;
+  // onsole.log(`[WEBHOOK] IVR Recording completed from ${from} for call ${callSid}, recording URL: ${recordingUrl}, duration: ${recordingDuration}, transcript URL: ${transcriptUrl}, transcript: ${transcript}`);
+  console.log("IVR Transcription completed: Full request body:", JSON.stringify(req.body, null, 2));
+  
+  const twiml = new VoiceResponse();
+  twiml.say({ voice: "Polly.Nicole", language: "en-AU" }, "Thank you, transcriptionß received. Goodbye.");
   twiml.hangup();
   res.type("text/xml").send(twiml.toString());
 };
