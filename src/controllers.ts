@@ -2,7 +2,7 @@ import { Request, Response } from "express";
 import VoiceResponse from "twilio/lib/twiml/VoiceResponse";
 import { db, aiService, smsService, s3Service, presignedUrlService } from "./services";
 
-const BASE_URL = process.env.BASE_URL || `http://localhost:${process.env.PORT || 3000}`;
+const BASE_URL = 'https://twilio-integration-test-production.up.railway.app';
 
 /**
  * 1. INCOMING CALL HANDLER
