@@ -156,7 +156,7 @@ export const getIncomingCallWithIVRResponse = (req: Request, res: Response) => {
  * Handles the digit pressed by the user from the <Gather> verb.
  */
 export const handleIvrSelection = async (req: Request, res: Response) => {
-  const { digits, to } = req.body;
+  const { digits = '0', to = '' } = req.body || {};
   const twiml = new VoiceResponse();
 
   if (digits === '1') {
