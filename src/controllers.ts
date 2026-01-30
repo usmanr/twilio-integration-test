@@ -18,7 +18,7 @@ export const handleIncomingCall = async (req: Request, res: Response) => {
 
   if (!tradie) {
     // Fallback if number is unassigned
-    twiml.say({ voice: "Polly.Nicole", language: "en-AU" }, 
+    twiml.say({ voice: "Google.en-AU-Neural2-C", language: "en-AU" }, 
       "We could not connect your call. Please check the number."
     );
     return res.type("text/xml").send(twiml.toString());
@@ -110,7 +110,7 @@ export const getIncomingCallWithIVRResponse = (req: Request, res: Response) => {
     method: 'POST',
   });
   gather.say(
-    { voice: "Polly.Nicole", language: "en-AU" },
+    { voice: "Google.en-AU-Neural2-C", language: "en-AU" },
     "Thanks for calling Micro electrician, please press 1 if you want to auto log a call, press 2 if you wish to speak to us directly"
   );
 
@@ -131,7 +131,7 @@ export const handleIvrSelection = async (req: Request, res: Response) => {
 
   if (digits === '1') {
     twiml.say(
-      { voice: "Polly.Nicole", language: "en-AU" },
+      { voice: "Google.en-AU-Neural2-C", language: "en-AU" },
       "record your message after the beep. when you are done, hangup"
     );
     twiml.record({
@@ -151,7 +151,7 @@ export const handleIvrSelection = async (req: Request, res: Response) => {
     const tradie = await db.getTradieByVirtualNumber(to);
     if (tradie) {
       twiml.say(
-        { voice: "Polly.Nicole", language: "en-AU" },
+        { voice: "Google.en-AU-Neural2-C", language: "en-AU" },
         `Connecting you to ${tradie.name}.`
       );
       twiml.dial().number(tradie.realMobile);
@@ -162,7 +162,7 @@ export const handleIvrSelection = async (req: Request, res: Response) => {
   } else {
     // Handle invalid input
     twiml.say(
-      { voice: "Polly.Nicole", language: "en-AU" },
+      { voice: "Google.en-AU-Neural2-C", language: "en-AU" },
       "Sorry, that's not a valid choice."
     );
     twiml.redirect(`${BASE_URL}/webhooks/voice/ivr-incoming`);
@@ -178,7 +178,7 @@ export const handleIvrRecordingCompleted = async (req: Request, res: Response) =
   
   // End the call
   const twiml = new VoiceResponse();
-  twiml.say({ voice: "Polly.Nicole", language: "en-AU" }, "Thank you, your message has been saved. Goodbye.");
+  twiml.say({ voice: "Google.en-AU-Neural2-C", language: "en-AU" }, "Thank you, your message has been saved. Goodbye.");
   twiml.hangup();
   res.type("text/xml").send(twiml.toString());
 };
@@ -190,7 +190,7 @@ export const handleIvrTranscriptionCompleted = async (req: Request, res: Respons
   console.log("IVR Transcription completed: Full request body:", JSON.stringify(req.body, null, 2));
   
   const twiml = new VoiceResponse();
-  twiml.say({ voice: "Polly.Nicole", language: "en-AU" }, "Thank you, transcriptionß received. Goodbye.");
+  twiml.say({ voice: "Google.en-AU-Neural2-C", language: "en-AU" }, "Thank you, transcriptionß received. Goodbye.");
   twiml.hangup();
   res.type("text/xml").send(twiml.toString());
 };
