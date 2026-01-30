@@ -202,7 +202,10 @@ export const handleIvrSelection = async (req: Request, res: Response) => {
  */
 export const handleIvrRecordingCompleted = async (req: Request, res: Response) => {
   const { from, recordingurl: recordingUrl, transcriptiontext: transcript, transcriptionUrl: transcriptUrl, allsid: callSid, to, recordingduration: recordingDuration } = req.body;
-  console.log(`[WEBHOOK] IVR Recording completed from ${from} for call ${callSid}, recording URL: ${recordingUrl}, duration: ${recordingDuration}, transcript URL: ${transcriptUrl}, transcript: ${transcript}`);
+  // onsole.log(`[WEBHOOK] IVR Recording completed from ${from} for call ${callSid}, recording URL: ${recordingUrl}, duration: ${recordingDuration}, transcript URL: ${transcriptUrl}, transcript: ${transcript}`);
+  console.log("IVR Recording completed: Full request body:", JSON.stringify(req.body, null, 2));
+  return;
+  
   if (recordingUrl){
       const recordingData = await s3Service.fetchRecording(recordingUrl);
     // 3. Upload to S3
