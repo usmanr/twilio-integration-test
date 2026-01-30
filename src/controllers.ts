@@ -102,6 +102,7 @@ export const handleGoodbye = (req: Request, res: Response) => {
  * Returns a TwiML response with a <Gather> to collect user input.
  */
 export const getIncomingCallWithIVRResponse = (req: Request, res: Response) => {
+  console.log("IVR Incoming Call: Full request body:", JSON.stringify(req.body, null, 2));
   const twiml = new VoiceResponse();
   const gather = twiml.gather({
     numDigits: 1,
@@ -124,6 +125,7 @@ export const getIncomingCallWithIVRResponse = (req: Request, res: Response) => {
  * Handles the digit pressed by the user from the <Gather> verb.
  */
 export const handleIvrSelection = async (req: Request, res: Response) => {
+  console.log("IVR Selection received: Full request body:", JSON.stringify(req.body, null, 2));
   const { digits = '0', to = '' } = req.body || {};
   const twiml = new VoiceResponse();
 
