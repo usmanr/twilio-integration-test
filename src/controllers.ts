@@ -221,7 +221,7 @@ export const handleVaIncomingCall = async (req: Request, res: Response) => {
     track: 'both',
     trim: 'do-not-trim',
     channels: 'dual',
-    recordingStatusCallback: `${BASE_URL}/webhooks/va-recording-post`,
+    recordingStatusCallback: `${BASE_URL}/webhooks/voice/va-recording-post`,
     recordingStatusCallbackEvent: ['in-progress', 'completed', 'absent'],
   });
 
