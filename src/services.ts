@@ -7,6 +7,7 @@ interface CallRecord {
   to: string;
   status: string;
   recordingUrl?: string;
+  recordingStatus?: string;
   transcript?: string;
   steps?: { name: string, text: string}[]
 }
@@ -47,6 +48,15 @@ export const db = {
     }
   },
 
+  addRecording: async (callSid: string, recordingUrl: string, recordingStatus: string) => {
+    console.log(`[DB] Added recording for ${callSid}: ${recordingUrl}`);
+    const call = MOCK_CALLS.find(c => c.callSid === callSid);
+    if (call) {
+      call.recordingUrl = recordingUrl;
+      call.recordingStatus = recordingStatus;
+    }
+  },
+
   updateCallRecord: async (callSid: string, data: Partial<CallRecord>) => {
     console.log(`[DB] Updated Call ${callSid}:`, data);
     const call = MOCK_CALLS.find(c => c.callSid === callSid);
@@ -69,6 +79,9 @@ export const db = {
   getCallRecord: async (callSid: string): Promise<CallRecord | null> => {
     console.log(`[DB] Getting record for ${callSid}`);
     return MOCK_CALLS.find(c => c.callSid === callSid) || null;
+  },
+  getAllCalls: () => {
+    return MOCK_CALLS;
   },
 };
 

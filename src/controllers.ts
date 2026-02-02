@@ -272,6 +272,9 @@ export const handleVaIncomingCall = async (req: Request, res: Response) => {
 
 export const handleVaRecordingAvailable = async (req: Request, res: Response) => {
     console.log("handleVaRecordingAvailable: Full request body:", JSON.stringify(req.body, null, 2));
+    const {recordingsid, recordingurl, recordingstatus} = req.body;
+    db.addRecording(recordingsid, recordingurl, recordingstatus);
+
   res.sendStatus(200); // Acknowledge Twilio
 };
 
@@ -281,6 +284,7 @@ export const handleVaRecordingAvailable = async (req: Request, res: Response) =>
  * and takes action.
  */
 export const handleVaTranscriptionAvailable = async (req: Request, res: Response) => {
+  
     console.log("handleVaTranscriptionAvailable: Full request body:", JSON.stringify(req.body, null, 2));
     const { step } = req.query;
 
@@ -340,3 +344,5 @@ export const handleVaTranscriptionAvailable = async (req: Request, res: Response
 
   res.type("text/xml").send(twiml.toString());
 };
+
+export const getAllCalls = async (req: Request, res: Response) => res.type("application/json").send(db.getAllCalls());

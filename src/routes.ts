@@ -9,7 +9,8 @@ import {
   handleIvrTranscriptionCompleted,
   handleVaIncomingCall,
   handleVaRecordingAvailable,
-  handleVaTranscriptionAvailable
+  handleVaTranscriptionAvailable,
+  getAllCalls
 } from "./controllers";
 
 const router = Router();
@@ -46,5 +47,7 @@ router.post("/voice/va-incoming", handleVaIncomingCall);
 router.post("/voice/va-transcription-available", handleVaTranscriptionAvailable);
 
 router.post("/voice/va-recording-post", handleVaRecordingAvailable);
+
+router.get('/voice/all-calls', getAllCalls);
 
 export default router;
