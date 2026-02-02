@@ -8,7 +8,8 @@ import {
   handleIvrRecordingCompleted,
   handleIvrTranscriptionCompleted,
   handleVaIncomingCall,
-  handleVaTranscriptionAvailable
+  handleVaTranscriptionAvailable,
+  handleVaRecordingAvailable
 } from "./controllers";
 
 const router = Router();
@@ -43,5 +44,7 @@ router.post("/voice/ivr-transcription-completed", handleIvrTranscriptionComplete
 router.post("/voice/va-incoming", handleVaIncomingCall);
 // 2. Webhook for when the transcription from <Gather> is complete
 router.post("/voice/va-transcription-available", handleVaTranscriptionAvailable);
+
+router.post("/voice/va-recording-post", handleVaRecordingAvailable);
 
 export default router;

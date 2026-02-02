@@ -217,10 +217,12 @@ export const handleVaIncomingCall = async (req: Request, res: Response) => {
   const twiml = new VoiceResponse();
   const twimlRecord = twiml.start();
 
-  twimlRecord.record({
-    transcribe: true,
-    transcribeCallback: `${BASE_URL}/webhooks/voice/transcription`,
-    playBeep: false,
+  twimlRecord.recording({
+    track: 'both',
+    trim: 'do-not-trim',
+    channels: 'dual',
+    recordingStatusCallback: `${BASE_URL}/webhooks/va-recording-post`,
+    recordingStatusCallbackEvent: ['in-progress', 'completed', 'absent'],
   });
 
   if (!tradie) {
@@ -271,6 +273,11 @@ export const handleVaIncomingCall = async (req: Request, res: Response) => {
   twiml.hangup();
 
   res.type("text/xml").send(twiml.toString());
+};
+
+export const handleVaRecordingAvailable = async (req: Request, res: Response) => {
+    console.log("handleVaRecordingAvailable: Full request body:", JSON.stringify(req.body, null, 2));
+  res.sendStatus(200); // Acknowledge Twilio
 };
 
 /**
