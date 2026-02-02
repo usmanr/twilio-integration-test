@@ -215,6 +215,13 @@ export const handleVaIncomingCall = async (req: Request, res: Response) => {
   const tradie = await db.getTradieByVirtualNumber(to);
 
   const twiml = new VoiceResponse();
+  const twimlRecord = twiml.start();
+
+  twimlRecord.record({
+    transcribe: true,
+    transcribeCallback: `${BASE_URL}/webhooks/voice/transcription`,
+    playBeep: false,
+  });
 
   if (!tradie) {
     // Fallback if number is unassigned
@@ -229,12 +236,6 @@ export const handleVaIncomingCall = async (req: Request, res: Response) => {
 
   // C. Log the call start
   await db.logCall(callSid, from, to, "VA_RECEIVED");
-
-  twiml.record({
-    transcribe: true,
-    transcribeCallback: `${BASE_URL}/webhooks/voice/transcription`,
-    playBeep: false,
-  });
 
   // D. Construct TwiML to greet, explain, and gather speech.
   const greeting = `Thank you for calling ${tradie.name || 'the service'}. We are currently unavailable.`;
