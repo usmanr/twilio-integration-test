@@ -272,8 +272,12 @@ export const handleVaIncomingCall = async (req: Request, res: Response) => {
 
 export const handleVaRecordingAvailable = async (req: Request, res: Response) => {
     console.log("handleVaRecordingAvailable: Full request body:", JSON.stringify(req.body, null, 2));
-    const {recordingsid, recordingurl, recordingstatus} = req.body;
-    db.addRecording(recordingsid, recordingurl, recordingstatus);
+    const {callsid, recordingurl, recordingstatus} = req.body;
+    if (callsid) {
+      await db.addRecording(callsid, recordingurl, recordingstatus);
+    } else {
+      console.error("[VA Recording] CallSid not found in recording callback body.");
+    }
 
   res.sendStatus(200); // Acknowledge Twilio
 };
