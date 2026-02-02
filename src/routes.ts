@@ -8,8 +8,8 @@ import {
   handleIvrRecordingCompleted,
   handleIvrTranscriptionCompleted,
   handleVaIncomingCall,
-  handleVaTranscriptionAvailable,
-  handleVaRecordingAvailable
+  handleVaRecordingAvailable,
+  handleVaTranscriptionAvailable
 } from "./controllers";
 
 const router = Router();

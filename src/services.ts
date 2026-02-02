@@ -8,6 +8,7 @@ interface CallRecord {
   status: string;
   recordingUrl?: string;
   transcript?: string;
+  steps?: { name: string, text: string}[]
 }
 
 // MOCK DATABASE
@@ -49,7 +50,16 @@ export const db = {
   updateCallRecord: async (callSid: string, data: Partial<CallRecord>) => {
     console.log(`[DB] Updated Call ${callSid}:`, data);
     const call = MOCK_CALLS.find(c => c.callSid === callSid);
+    
     if (call) {
+      // Special handling for appending steps to the collection
+      if (data.steps) {
+        if (!call.steps) {
+          call.steps = [];
+        }
+        call.steps.push(...data.steps);
+        delete data.steps; // Remove from data to avoid overwrite by Object.assign
+      }
       Object.assign(call, data);
     } else {
       MOCK_CALLS.push({ callSid, from: '', to: '', status: 'PROCESSING', ...data });

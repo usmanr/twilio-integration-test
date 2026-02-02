@@ -1,6 +1,6 @@
 import { Request, Response } from "express";
 import VoiceResponse from "twilio/lib/twiml/VoiceResponse";
-import { db, aiService, smsService, s3Service, presignedUrlService } from "./services";
+import { db, aiService, smsService } from "./services";
 
 const BASE_URL = 'https://twilio-integration-test-production.up.railway.app';
 
@@ -240,8 +240,8 @@ export const handleVaIncomingCall = async (req: Request, res: Response) => {
   await db.logCall(callSid, from, to, "VA_RECEIVED");
 
   // D. Construct TwiML to greet, explain, and gather speech.
-  const greeting = `Thank you for calling ${tradie.name || 'the service'}. We are currently unavailable.`;
-  const instructions = `Please leave a detailed message and we will ensure we could get back to you as soon as possible. You may hang up if you do not wish to leave a message.`;
+  const greeting = `Thank you for calling ${tradie.name || 'the service'}. We are currently unable to take your call.`;
+  const instructions = `In a few words, please tell us about the job you need help with.`;
 
   twiml.say({ voice: "Google.en-AU-Neural2-C", language: "en-AU" }, greeting);
   twiml.say({ voice: "Google.en-AU-Neural2-C", language: "en-AU" }, instructions);
@@ -256,7 +256,7 @@ export const handleVaIncomingCall = async (req: Request, res: Response) => {
   // The recording will stop after a period of silence, determined by `speechTimeout`.
   const gatherOptions: VoiceResponse.GatherAttributes = {
     input: ['speech'],
-    action: `${BASE_URL}/webhooks/voice/va-transcription-available`,
+    action: `${BASE_URL}/webhooks/voice/va-transcription-available?step=job-details`,
     actionOnEmptyResult: true,
     method: 'POST',
     language: "en-AU",
@@ -287,32 +287,61 @@ export const handleVaRecordingAvailable = async (req: Request, res: Response) =>
  */
 export const handleVaTranscriptionAvailable = async (req: Request, res: Response) => {
     console.log("handleVaTranscriptionAvailable: Full request body:", JSON.stringify(req.body, null, 2));
+    const { step } = req.query;
 
   // Parameters are lowercase due to middleware.
   // `speechresult` from <Gather> is used instead of `transcriptiontext` from <Record>.
   const { callsid: callSid, speechresult: transcriptionText, to } = req.body;
+  const twiml = new VoiceResponse();
 
   if (!transcriptionText) {
     console.log(`[VA WEBHOOK] Received empty transcription for ${callSid}. Ignoring.`);
-    return res.sendStatus(200);
+
+    // If the first step is empty, we can just hang up.
+    twiml.say({ voice: "Google.en-AU-Neural2-C", language: "en-AU" }, "We did not receive a message. Goodbye.");
+    twiml.hangup();
+    return res.type("text/xml").send(twiml.toString());
   }
 
-  console.log(`[VA WEBHOOK] Received transcription for ${callSid}: "${transcriptionText}"`);
+  console.log(`[VA WEBHOOK] Step: ${step}, Received transcription for ${callSid}: "${transcriptionText}"`);
 
-  await db.updateCallRecord(callSid, {
-    transcript: transcriptionText,
-    status: "VA_PROCESSED",
-  });
 
-  const analysis = await aiService.analyzeTranscript(transcriptionText);
+  if (step === 'job-details') {
+    // 1. Store the first piece of information (job details)
+    await db.updateCallRecord(callSid, { steps: [{ name: 'job-details', text: transcriptionText }] });
 
-  if (analysis.isJob) {
-    const tradie = await db.getTradieByVirtualNumber(to);
-    if (tradie) {
-      const message = `New Lead (from VA): "${analysis.summary}". Reply YES to create job.`;
-      await smsService.sendConfirmation(tradie.realMobile, message);
-    }
+    // 2. Ask for the next piece of information (contact/address)
+    const gather = twiml.gather({
+      input: ['speech'],
+      action: `${BASE_URL}/webhooks/voice/va-transcription-available?step=address-details`,
+      method: 'POST',
+      language: "en-AU",
+      speechModel: "phone_call",
+      enhanced: true,
+      speechTimeout: '5',
+    });
+    gather.say({ voice: "Google.en-AU-Neural2-C", language: "en-AU" }, 
+      "Thank you. To make sure we log your job with the correct details, please clearly state your full name, best contact number, and the property address."
+    );
+  } else if (step === 'address-details') {
+    // 1. Store the second piece of information
+    await db.updateCallRecord(callSid, { steps: [{ name: 'address-details', text: transcriptionText }] });
+
+    // 2. Consolidate all info and process
+    const callRecord = await db.getCallRecord(callSid);
+    const fullTranscript = callRecord?.steps?.map(s => s.text).join(' \n ') || transcriptionText;
+
+    await db.updateCallRecord(callSid, { transcript: fullTranscript, status: "VA_PROCESSED" });
+
+    // 3. End the call gracefully
+    twiml.say({ voice: "Google.en-AU-Neural2-C", language: "en-AU" }, "Thank you for the details. We will be in touch shortly. Goodbye.");
+    twiml.hangup();
+
+  } else {
+    // Fallback for unknown step
+    twiml.say({ voice: "Google.en-AU-Neural2-C", language: "en-AU" }, "An error occurred. Goodbye.");
+    twiml.hangup();
   }
 
-  res.sendStatus(200); // Acknowledge Twilio
+  res.type("text/xml").send(twiml.toString());
 };
