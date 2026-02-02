@@ -263,7 +263,7 @@ export const handleVaIncomingCall = async (req: Request, res: Response) => {
     speechModel: "phone_call",
     enhanced: true,
     hints: hints,
-    speechTimeout: '5',
+    speechTimeout: '3',
   };
   twiml.gather(gatherOptions);
 
@@ -318,7 +318,7 @@ export const handleVaTranscriptionAvailable = async (req: Request, res: Response
       language: "en-AU",
       speechModel: "phone_call",
       enhanced: true,
-      speechTimeout: '5',
+      speechTimeout: '3',
     });
     gather.say({ voice: "Google.en-AU-Neural2-C", language: "en-AU" }, 
       "Thank you. To make sure we log your job with the correct details, please clearly state your full name, best contact number, and the property address."
