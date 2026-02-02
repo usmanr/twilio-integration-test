@@ -232,29 +232,30 @@ export const handleVaIncomingCall = async (req: Request, res: Response) => {
 
   // D. Construct TwiML to greet, explain, and gather speech.
   const greeting = `Thank you for calling ${tradie.name || 'the service'}. We are currently unavailable.`;
-  const instructions = `Please leave a detailed message after the beep, and we will ensure we could get back to you as soon as possible. You may hang up if you do not wish to leave a message.`;
+  const instructions = `Please leave a detailed message and we will ensure we could get back to you as soon as possible. You may hang up if you do not wish to leave a message.`;
 
   twiml.say({ voice: "Google.en-AU-Neural2-C", language: "en-AU" }, greeting);
   twiml.pause({ length: 1 });
   twiml.say({ voice: "Google.en-AU-Neural2-C", language: "en-AU" }, instructions);
 
   // Play a beep sound since <Gather> doesn't have a playBeep attribute
-  twiml.play({}, 'http://com.twilio.sounds.beep.mp3');
+  // twiml.play({}, 'http://com.twilio.sounds.beep.mp3');
 
   // Using <Gather> for speech-to-text as requested.
   // The 'any' cast is used to include advanced speech recognition parameters
   // that may not be in the current version of the Twilio SDK's TypeScript types.
   // Note: <Gather> does not support a `maxLength` attribute like <Record>.
   // The recording will stop after a period of silence, determined by `speechTimeout`.
-  const gatherOptions: any = {
-    input: 'speech',
+  const gatherOptions: VoiceResponse.GatherAttributes = {
+    input: ['speech'],
     action: `${BASE_URL}/webhooks/voice/va-transcription-available`,
+    actionOnEmptyResult: true,
     method: 'POST',
     language: "en-AU",
     speechModel: "phone_call",
     enhanced: true,
     hints: hints,
-    speechTimeout: 'auto',
+    speechTimeout: '5',
   };
   twiml.gather(gatherOptions);
 
