@@ -267,11 +267,6 @@ export const handleVaIncomingCall = async (req: Request, res: Response) => {
   };
   twiml.gather(gatherOptions);
 
-  // Fallback if the user doesn't say anything and <Gather> times out.
-  // This is executed because the default for `actionOnEmptyResult` is false.
-  twiml.say({ voice: "Google.en-AU-Neural2-C", language: "en-AU" }, "We did not receive a message. Goodbye.");
-  twiml.hangup();
-
   res.type("text/xml").send(twiml.toString());
 };
 
