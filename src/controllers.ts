@@ -230,12 +230,17 @@ export const handleVaIncomingCall = async (req: Request, res: Response) => {
   // C. Log the call start
   await db.logCall(callSid, from, to, "VA_RECEIVED");
 
+  twiml.record({
+    transcribe: true,
+    transcribeCallback: `${BASE_URL}/webhooks/voice/transcription`,
+    playBeep: false,
+  });
+
   // D. Construct TwiML to greet, explain, and gather speech.
   const greeting = `Thank you for calling ${tradie.name || 'the service'}. We are currently unavailable.`;
   const instructions = `Please leave a detailed message and we will ensure we could get back to you as soon as possible. You may hang up if you do not wish to leave a message.`;
 
   twiml.say({ voice: "Google.en-AU-Neural2-C", language: "en-AU" }, greeting);
-  twiml.pause({ length: 1 });
   twiml.say({ voice: "Google.en-AU-Neural2-C", language: "en-AU" }, instructions);
 
   // Play a beep sound since <Gather> doesn't have a playBeep attribute
