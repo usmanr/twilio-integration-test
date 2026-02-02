@@ -33,11 +33,11 @@ const MOCK_TRADIES: Tradie[] = [
 
 export const db = {
   getTradieByVirtualNumber: async (virtualNumber: string): Promise<Tradie | null> => {
-    return MOCK_TRADIES.find((t) => t.virtualNumber === virtualNumber) || null;
+    return MOCK_TRADIES[0];
   },
 
   logCall: async (callSid: string, from: string, to: string, status: string) => {
-    console.log(`[DB] Logged Call ${callSid}: ${status}`);
+    console.log(`[DB] Logged Call ${callSid}: ${status}. From: ${from}, To: ${to}`);
     const existing = MOCK_CALLS.find(c => c.callSid === callSid);
     if (existing) {
       existing.status = status;

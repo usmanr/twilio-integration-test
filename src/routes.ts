@@ -6,7 +6,9 @@ import {
   getIncomingCallWithIVRResponse,
   handleIvrSelection,
   handleIvrRecordingCompleted,
-  handleIvrTranscriptionCompleted
+  handleIvrTranscriptionCompleted,
+  handleVaIncomingCall,
+  handleVaTranscriptionAvailable
 } from "./controllers";
 
 const router = Router();
@@ -35,5 +37,11 @@ router.post("/voice/ivr-recording-completed", handleIvrRecordingCompleted);
 
 // 4. Webhook for when the transcription from the IVR is complete
 router.post("/voice/ivr-transcription-completed", handleIvrTranscriptionCompleted);
+
+// --- VA Flow ---
+// 1. Entry point for the VA, gathers speech
+router.post("/voice/va-incoming", handleVaIncomingCall);
+// 2. Webhook for when the transcription from <Gather> is complete
+router.post("/voice/va-transcription-available", handleVaTranscriptionAvailable);
 
 export default router;
