@@ -4,6 +4,12 @@ import { db, aiService, smsService } from "./services";
 
 const BASE_URL = 'https://twilio-integration-test-production.up.railway.app';
 
+const PROMPTS: Record<number, string> = {
+  1: 'Hi, thanks for calling ${tradie.name}. In a few words, please describe the work you want done.',
+  2: 'Thank you. To make sure we log your job with the correct details, please clearly state your full name, best contact number, and the property address.',
+  3: 'Right. Anything else you want me to note ?'
+};
+
 // IVR Call Handling
 export const getIncomingCallWithIVRResponse = (req: Request, res: Response) => {
   console.log("IVR Incoming Call: Full request body:", JSON.stringify(req.body, null, 2));
@@ -135,13 +141,10 @@ export const handleVaIncomingCall = async (req: Request, res: Response) => {
   // C. Log the call start
   await db.logCall(callSid, from, to, "VA_RECEIVED");
 
-  // D. Construct TwiML to greet, explain, and gather speech.
-  const greeting = `Thank you for calling ${tradie.name || 'the service'}. We are currently unable to take your call.`;
-  const instructions = `In a few words, please tell us about the job you need help with.`;
-
-  twiml.say({ voice: "Google.en-AU-Neural2-C", language: "en-AU" }, greeting);
-  twiml.say({ voice: "Google.en-AU-Neural2-C", language: "en-AU" }, instructions);
-
+  // D. Use the first prompt for the initial gathering of speech.
+  const prompt1 = PROMPTS[1].replace('${tradie.name}', tradie.name || 'the service');
+  twiml.say({ voice: "Google.en-AU-Neural2-C", language: "en-AU" }, prompt1);
+  
   const gatherOptions: VoiceResponse.GatherAttributes = {
     input: ['speech'],
     action: `${BASE_URL}/webhooks/voice/va-transcription-available?step=job-details`,
@@ -211,14 +214,29 @@ export const handleVaTranscriptionAvailable = async (req: Request, res: Response
       enhanced: true,
       speechTimeout: '3',
     });
-    gather.say({ voice: "Google.en-AU-Neural2-C", language: "en-AU" }, 
-      "Thank you. To make sure we log your job with the correct details, please clearly state your full name, best contact number, and the property address."
-    );
+    gather.say({ voice: "Google.en-AU-Neural2-C", language: "en-AU" }, PROMPTS[2]);
+
   } else if (step === 'address-details') {
     // 1. Store the second piece of information
     await db.updateCallRecord(callSid, { steps: [{ name: 'address-details', text: transcriptionText }] });
 
-    // 2. Consolidate all info and process
+    // 2. Ask for the final piece of information
+    const gather = twiml.gather({
+      input: ['speech'],
+      action: `${BASE_URL}/webhooks/voice/va-transcription-available?step=final-notes`,
+      method: 'POST',
+      language: "en-AU",
+      speechModel: "phone_call",
+      enhanced: true,
+      speechTimeout: '3',
+    });
+    gather.say({ voice: "Google.en-AU-Neural2-C", language: "en-AU" }, PROMPTS[3]);
+
+  } else if (step === 'final-notes') {
+    // 1. Store the final piece of information
+    await db.updateCallRecord(callSid, { steps: [{ name: 'final-notes', text: transcriptionText }] });
+
+    // 2. Consolidate all info, process with AI, and notify tradie
     const callRecord = await db.getCallRecord(callSid);
     const fullTranscript = callRecord?.steps?.map(s => s.text).join(' \n ') || transcriptionText;
 
@@ -227,7 +245,6 @@ export const handleVaTranscriptionAvailable = async (req: Request, res: Response
     // 3. End the call gracefully
     twiml.say({ voice: "Google.en-AU-Neural2-C", language: "en-AU" }, "Thank you for the details. We will be in touch shortly. Goodbye.");
     twiml.hangup();
-
   } else {
     // Fallback for unknown step
     twiml.say({ voice: "Google.en-AU-Neural2-C", language: "en-AU" }, "An error occurred. Goodbye.");
