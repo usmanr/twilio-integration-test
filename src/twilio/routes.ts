@@ -7,7 +7,8 @@ import {
   handleVaIncomingCall,
   handleVaRecordingAvailable,
   handleVaTranscriptionAvailable,
-  getAllCalls
+  getAllCalls,
+  getPolishedDescription
 } from "./controller";
 
 const router = Router();
@@ -35,5 +36,7 @@ router.post("/voice/va-transcription-available", handleVaTranscriptionAvailable)
 router.post("/voice/va-recording-post", handleVaRecordingAvailable);
 
 router.get('/voice/all-calls', getAllCalls);
+
+router.get('/voice/all-calls/polished', getPolishedDescription);
 
 export default router;

@@ -1,6 +1,7 @@
 import { Request, Response } from "express";
 import VoiceResponse from "twilio/lib/twiml/VoiceResponse";
 import { db, aiService, smsService } from "./services";
+import { polishTranscript } from "../ai-polisher";
 
 const BASE_URL = 'https://twilio-integration-test-production.up.railway.app';
 
@@ -253,5 +254,26 @@ export const handleVaTranscriptionAvailable = async (req: Request, res: Response
 
   res.type("text/xml").send(twiml.toString());
 };
+
+export const getPolishedDescription = async (req: Request, res: Response) => {
+  const allCalls = await db.getAllCalls();
+  if (!allCalls || allCalls.length === 0) {
+    return res.status(200).json({ error: 'No calls found' });
+  }
+
+  var response = "";
+  for (const call of allCalls) {
+    const ai_response = await polishTranscript(
+      call?.steps?.[0]?.text || '',
+      call?.steps?.[1]?.text || '',
+      call?.steps?.[2]?.text || ''
+    );
+
+    if (ai_response) {
+      response += JSON.stringify(ai_response) + "\n";
+    }
+  }
+  res.type("application/json").send(response)
+}
 
 export const getAllCalls = async (req: Request, res: Response) => res.type("application/json").send(db.getAllCalls());
