@@ -1,8 +1,5 @@
 import { Router } from "express";
 import { 
-  handleIncomingCall, 
-  handleTranscription,
-  handleGoodbye,
   getIncomingCallWithIVRResponse,
   handleIvrSelection,
   handleIvrRecordingCompleted,
@@ -11,21 +8,10 @@ import {
   handleVaRecordingAvailable,
   handleVaTranscriptionAvailable,
   getAllCalls
-} from "./controllers";
+} from "./controller";
 
 const router = Router();
 
-// Endpoint for Twilio "Voice Webhook"
-router.post("/voice/incoming", handleIncomingCall);
-
-// Endpoint for <Dial> action (Missed call logic)
-router.post("/voice/completed", handleGoodbye);
-
-// Endpoint for Transcription Callback
-router.post("/voice/transcription", handleTranscription);
-
-// Endpoint for Voicemail finish
-router.post("/voice/goodbye", handleGoodbye);
 
 // --- IVR Flow ---
 // 1. Entry point for the IVR

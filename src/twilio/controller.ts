@@ -4,103 +4,7 @@ import { db, aiService, smsService } from "./services";
 
 const BASE_URL = 'https://twilio-integration-test-production.up.railway.app';
 
-/**
- * 1. INCOMING CALL HANDLER
- * Triggered when Customer calls Virtual Number.
- */
-export const handleIncomingCall = async (req: Request, res: Response) => {
-  const { callsid, from, to } = req.body;
-  
-  // A. Lookup who this virtual number belongs to
-  const tradie = await db.getTradieByVirtualNumber(to);
-
-  const twiml = new VoiceResponse();
-
-  if (!tradie) {
-    // Fallback if number is unassigned
-    twiml.say({ voice: "Google.en-AU-Neural2-C", language: "en-AU" }, 
-      "We could not connect your call. Please check the number."
-    );
-    return res.type("text/xml").send(twiml.toString());
-  }
-
-  // B. Log the call start
-  await db.logCall(callsid, from, to, "RECEIVED");
-
-  // C. Construct TwiML
-  //    - Record the call
-  //    - Transcribe it (Async)
-  //    - If call ends/fails, hit the 'action' URL
-  const dial = twiml.dial({
-    action: `${BASE_URL}/webhooks/voice/completed`, // Handles busy/no-answer
-    timeout: 20, // Ring for 20 seconds before giving up
-  });
-
-  dial.number(tradie.realMobile);
-
-  // Add recording with transcription as a separate element
-  twiml.record({
-    transcribe: true,
-    transcribeCallback: `${BASE_URL}/webhooks/voice/transcription`,
-    playBeep: false,
-  });
-
-  res.type("text/xml").send(twiml.toString());
-};
-
-/**
- * 3. TRANSCRIPTION HANDLER (Async)
- * Triggered by Twilio when text is ready (could be 1 min later).
- */
-export const handleTranscription = async (req: Request, res: Response) => {
-  const { callsid, transcriptiontext, to } = req.body;
-
-  console.log(`[WEBHOOK] Received transcription for ${callsid}`);
-
-  // A. Update DB
-  await db.updateCallRecord(callsid, { 
-    transcript: transcriptiontext, 
-    status: "PROCESSED" 
-  });
-
-  // B. AI Analysis
-  const analysis = await aiService.analyzeTranscript(transcriptiontext);
-
-  if (analysis.isJob) {
-    const tradie = await db.getTradieByVirtualNumber(to);
-    
-    if (tradie) {
-      if (tradie.autoCreateJobs) {
-        // Auto-Create
-        // await db.createJob(tradie.id, analysis.summary);
-      } else {
-        // Manual Confirm via SMS
-        await smsService.sendConfirmation(
-          tradie.realMobile, 
-          `New Lead detected: "${analysis.summary}". Reply YES to create job.`
-        );
-      }
-    }
-  }
-
-  res.sendStatus(200); // Acknowledge Twilio
-};
-
-/**
- * 4. GOODBYE HANDLER
- * Just a clean exit for voicemail
- */
-export const handleGoodbye = (req: Request, res: Response) => {
-  const twiml = new VoiceResponse();
-  twiml.say("Thank you. Goodbye.");
-  twiml.hangup();
-  res.type("text/xml").send(twiml.toString());
-};
-
-/**
- * 5. IVR INCOMING CALL HANDLER
- * Returns a TwiML response with a <Gather> to collect user input.
- */
+// IVR Call Handling
 export const getIncomingCallWithIVRResponse = (req: Request, res: Response) => {
   console.log("IVR Incoming Call: Full request body:", JSON.stringify(req.body, null, 2));
   const twiml = new VoiceResponse();
@@ -195,17 +99,12 @@ export const handleIvrTranscriptionCompleted = async (req: Request, res: Respons
   res.type("text/xml").send(twiml.toString());
 };
 
-/**
- * =================================================================
- * VIRTUAL ASSISTANT (VA) FLOW
- * =================================================================
- */
 
-/**
- * VA: INCOMING CALL HANDLER
- * This is triggered when a customer calls a virtual number assigned to the VA.
- * It plays a greeting and records the caller's message for transcription and analysis.
- */
+ /* =================================================================
+ * VIRTUAL ASSISTANT (VA) FLOW
+ * =================================================================*/
+ 
+
 export const handleVaIncomingCall = async (req: Request, res: Response) => {
   console.log("handleVaIncomingCall: Full request body:", JSON.stringify(req.body, null, 2));
   // Parameters are lowercase due to the `lowercaseBodyKeys` middleware
@@ -231,9 +130,6 @@ export const handleVaIncomingCall = async (req: Request, res: Response) => {
     return res.type("text/xml").send(twiml.toString());
   }
 
-  // B. Get hints for transcription accuracy.
-  // NOTE: You would need to implement functions to get relevant hints,
-  // for example, from past jobs with this caller or job-specific terminology.
   const hints = ["electrician", "power point", "switchboard", "lighting", "rewire", "safety switch", tradie.name].join(',');
 
   // C. Log the call start
@@ -246,14 +142,6 @@ export const handleVaIncomingCall = async (req: Request, res: Response) => {
   twiml.say({ voice: "Google.en-AU-Neural2-C", language: "en-AU" }, greeting);
   twiml.say({ voice: "Google.en-AU-Neural2-C", language: "en-AU" }, instructions);
 
-  // Play a beep sound since <Gather> doesn't have a playBeep attribute
-  // twiml.play({}, 'http://com.twilio.sounds.beep.mp3');
-
-  // Using <Gather> for speech-to-text as requested.
-  // The 'any' cast is used to include advanced speech recognition parameters
-  // that may not be in the current version of the Twilio SDK's TypeScript types.
-  // Note: <Gather> does not support a `maxLength` attribute like <Record>.
-  // The recording will stop after a period of silence, determined by `speechTimeout`.
   const gatherOptions: VoiceResponse.GatherAttributes = {
     input: ['speech'],
     action: `${BASE_URL}/webhooks/voice/va-transcription-available?step=job-details`,
@@ -262,7 +150,7 @@ export const handleVaIncomingCall = async (req: Request, res: Response) => {
     language: "en-AU",
     speechModel: "phone_call",
     enhanced: true,
-    hints: hints,
+    hints,
     speechTimeout: '3',
   };
   twiml.gather(gatherOptions);
