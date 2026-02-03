@@ -36,16 +36,22 @@ export const handleSinchEvent = async (req: Request, res: Response) => {
   const event: SinchEvent = req.body as SinchEvent;
 
   try {
-    switch (event.event) {
-      case 'incomingCallEvent':
+    switch (event.event?.toLowerCase()) {
+      case 'ice': // Incoming Call Event
         return handleIncomingCall(event, res);
-      case 'promptInputEvent':
+      case 'pie': // Prompt Input Event
         return handlePromptInput(event, res);
-      case 'recordingEvent':
-        handleRecording(event);
+      // case 'recordingEvent':
+        // handleRecording(event);
+        // break;
+      // case 'transcriptionEvent':
+        // handleTranscription(event);
+        // break;
+      case 'dice':
+        console.log(`Disconnection request received. Body: ${JSON.stringify(req.body, null, 2)}`)
         break;
-      case 'transcriptionEvent':
-        handleTranscription(event);
+      case 'notify':
+        console.log(`Notify request received. Body: ${JSON.stringify(req.body, null, 2)}`)
         break;
     }
   } catch (error) {
