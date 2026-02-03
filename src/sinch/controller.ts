@@ -31,7 +31,7 @@ const PROMPTS: Record<number, string> = {
 const callSessions = new Map<string, CallSession>();
 
 export const handleSinchEvent = async (req: Request, res: Response) => {
-  console.log("Sinch Incoming Call: Full request body:", JSON.stringify(req.body, null, 2));
+  console.log(`Sinch Call Event Received: Full request body: ${JSON.stringify(req.body, null, 2)}`);
 
   const event: SinchEvent = req.body as SinchEvent;
 
