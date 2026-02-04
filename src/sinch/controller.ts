@@ -89,7 +89,7 @@ function handleIncomingCall(event: SinchEvent, res: Response) {
     .addInstruction(Voice.iceInstructionHelper.answer())
     .addInstruction(
       Voice.iceInstructionHelper.startRecording({
-        destinationUrl: `${recordingDestination}callid.mp3`,
+        destinationUrl: `${recordingDestination}${callId}/recording.mp3`,
         credentials: recordingCredentials,
         format: 'mp3',
         notificationEvents: true,
@@ -112,7 +112,7 @@ function handleIncomingCall(event: SinchEvent, res: Response) {
           {
             id: 'main',
             maxDigits: 0, // No DTMF input, voice only
-            timeoutMills: 2000 // 2 second timeout for voice input
+            timeoutMills: 3000 // 3 second timeout for voice input
           }
         ]
       })
@@ -187,7 +187,7 @@ function sendPromptForStep(step: number, session: CallSession, res: Response): v
           {
             id: 'main',
             maxDigits: 0, // No DTMF input, voice only
-            timeoutMills: 5000 // 5 second timeout for voice input
+            timeoutMills: 3000 // 3 second timeout for voice input
           }
         ]
       })
@@ -208,19 +208,6 @@ function sendPromptForStep(step: number, session: CallSession, res: Response): v
 // 3. STEP 4: Log + hangup
 function completeCall(session: CallSession, res: Response): void {
   const tradie = { id: 'John-Smith', name: 'John Plumbing' }
- /* const jobData = {
-    callId: session.callId,
-    step1_jobDesc: session.data.jobDesc,
-    step2_contact: session.data.contact,
-    step3_notes: session.data.notes
-  };
-
-  // Backend POST (your LLM extraction here)
-  fetch('https://your-backend.com/api/log-job', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(jobData)
-  }).catch(console.error);*/
 
   const svaml = new Voice.PieSvamletBuilder()
     .addInstruction(Voice.pieInstructionHelper.say(
@@ -234,23 +221,6 @@ function completeCall(session: CallSession, res: Response): void {
   console.log('📤 Completion SVAML:', JSON.stringify(svaml, null, 2));
   // callSessions.delete(session.callId);
   res.json(svaml);
-}
-
-// Recording/transcription handlers (unchanged)
-function handleRecording(event: any): void {
-  var session = callSessions.get(event.callId);
-  if (!session) return;
-  session.recording = event.url;
-  callSessions.set(event.callId, session);
-  console.log('Recording:', event.url);
-}
-
-function handleTranscription(event: any): void {
-  var session = callSessions.get(event.callId);
-  if (!session) return;
-  session.transcript = event.text;
-  callSessions.set(event.callId, session);
-  console.log('Transcription:', event.text);
 }
 
 export const getAllCalls = async (req: Request, res: Response) => res.type("application/json").send(callSessions);
