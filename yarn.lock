@@ -32,6 +32,76 @@
     "@jridgewell/resolve-uri" "^3.0.3"
     "@jridgewell/sourcemap-codec" "^1.4.10"
 
+"@sinch/conversation@^1.3.0":
+  version "1.3.0"
+  resolved "https://registry.npmjs.org/@sinch/conversation/-/conversation-1.3.0.tgz"
+  integrity sha512-wbVzIgYYfQucjdL206nED/IBCveqQQbSxURLCrLxgm+HE6bHPHwdi7XbTkBl6k8MnbgGLoRUq5QFLwQt5uw7iw==
+  dependencies:
+    "@sinch/sdk-client" "^1.3.0"
+
+"@sinch/elastic-sip-trunking@^1.3.0":
+  version "1.3.0"
+  resolved "https://registry.npmjs.org/@sinch/elastic-sip-trunking/-/elastic-sip-trunking-1.3.0.tgz"
+  integrity sha512-QI2X90ziU2ElhxwLOYimMdDOXk04kyBg+AQHNFwDrfJHix7ZoFp+6kC8NtbfuM+EfK0Rnu7ckmP/IWxC8MCfWQ==
+  dependencies:
+    "@sinch/sdk-client" "^1.3.0"
+
+"@sinch/fax@^1.3.0":
+  version "1.3.0"
+  resolved "https://registry.npmjs.org/@sinch/fax/-/fax-1.3.0.tgz"
+  integrity sha512-CKA1CNcS/72io/s92gXspxwSJ6h+fEmhWlp5ZAJoPU1ys2/3sRoDE8PeBZmZJFuq/OtNuOWfefrlS0FlQZgcgA==
+  dependencies:
+    "@sinch/sdk-client" "^1.3.0"
+
+"@sinch/numbers@^1.3.0":
+  version "1.3.0"
+  resolved "https://registry.npmjs.org/@sinch/numbers/-/numbers-1.3.0.tgz"
+  integrity sha512-QRjTmiy4HjFOQvKyOKNX797rRATKZLvXms5teaII9zhZUb0QbtXAY8RnGUJbwJe9/qNfqVOd5w+bWrLcBfi3XA==
+  dependencies:
+    "@sinch/sdk-client" "^1.3.0"
+
+"@sinch/sdk-client@^1.3.0":
+  version "1.3.0"
+  resolved "https://registry.npmjs.org/@sinch/sdk-client/-/sdk-client-1.3.0.tgz"
+  integrity sha512-9AIVrKp5Cc1U2jhQ9eQE0tc1blcCOnJm+XvOu8KnmbFUvZ7npTJIp+Z59gao7qrLLtvGSKqcu2PV33YG/GPaUg==
+  dependencies:
+    form-data "^4.0.4"
+    node-fetch "2.7.0"
+
+"@sinch/sdk-core@^1.3.0":
+  version "1.3.0"
+  resolved "https://registry.npmjs.org/@sinch/sdk-core/-/sdk-core-1.3.0.tgz"
+  integrity sha512-LrYgR+n+LgRhmyGBso6jANCk8jDF9+Ha7aTTNzfGjpMgqD8gCgr4HueUQKd0ornv5j7zuPxf8S0H0+lLw0uxgg==
+  dependencies:
+    "@sinch/conversation" "^1.3.0"
+    "@sinch/elastic-sip-trunking" "^1.3.0"
+    "@sinch/fax" "^1.3.0"
+    "@sinch/numbers" "^1.3.0"
+    "@sinch/sms" "^1.3.0"
+    "@sinch/verification" "^1.3.0"
+    "@sinch/voice" "^1.3.0"
+
+"@sinch/sms@^1.3.0":
+  version "1.3.0"
+  resolved "https://registry.npmjs.org/@sinch/sms/-/sms-1.3.0.tgz"
+  integrity sha512-2VuUIGlBrQ7gWqfBCFbJ5U2xPa3KtF/pxPHGu5R0KKTBYb06QwuJud5wmBlBhta/cC/63TsTftuzPBBwFGlgdg==
+  dependencies:
+    "@sinch/sdk-client" "^1.3.0"
+
+"@sinch/verification@^1.3.0":
+  version "1.3.0"
+  resolved "https://registry.npmjs.org/@sinch/verification/-/verification-1.3.0.tgz"
+  integrity sha512-D5X5ov7L1jSti540oZZZ8CpTXUnQoPj3xboLGolAWtuoR4x6YVCJNeAQTsNAbVRaRpsr+rkeXLo61z2qDYTHUA==
+  dependencies:
+    "@sinch/sdk-client" "^1.3.0"
+
+"@sinch/voice@^1.3.0":
+  version "1.3.0"
+  resolved "https://registry.npmjs.org/@sinch/voice/-/voice-1.3.0.tgz"
+  integrity sha512-FRQSoa0YPYNLxdILMvC53AQhOm3dmKnhgWLgXpksDsXnUWkqEi9S0ok1ympkQAHI6hNJBA+FXygmH0WG594NQw==
+  dependencies:
+    "@sinch/sdk-client" "^1.3.0"
+
 "@tsconfig/node10@^1.0.7":
   version "1.0.12"
   resolved "https://registry.npmjs.org/@tsconfig/node10/-/node10-1.0.12.tgz"
@@ -738,6 +808,13 @@ negotiator@^1.0.0:
   resolved "https://registry.npmjs.org/negotiator/-/negotiator-1.0.0.tgz"
   integrity sha512-8Ofs/AUQh8MaEcrlq5xOX0CQ9ypTF5dl78mjlMNfOK08fzpgTHQRQPBxcPlEtIw0yRpws+Zo/3r+5WRby7u3Gg==
 
+node-fetch@2.7.0:
+  version "2.7.0"
+  resolved "https://registry.npmjs.org/node-fetch/-/node-fetch-2.7.0.tgz"
+  integrity sha512-c4FRfUm/dbcWZ7U+1Wq0AwCyFL+3nt2bEw05wfxSz+DWpWsitgmSgYmy2dQdWyKC1694ELPqMs/YzUSNozLt8A==
+  dependencies:
+    whatwg-url "^5.0.0"
+
 nodemon@^3.1.11:
   version "3.1.11"
   resolved "https://registry.npmjs.org/nodemon/-/nodemon-3.1.11.tgz"
@@ -979,6 +1056,11 @@ touch@^3.1.0:
   resolved "https://registry.npmjs.org/touch/-/touch-3.1.1.tgz"
   integrity sha512-r0eojU4bI8MnHr8c5bNo7lJDdI2qXlWWJk6a9EAFG7vbhTjElYhBVS3/miuE0uOuoLdb8Mc/rVfsmm6eo5o9GA==
 
+tr46@~0.0.3:
+  version "0.0.3"
+  resolved "https://registry.npmjs.org/tr46/-/tr46-0.0.3.tgz"
+  integrity sha512-N3WMsuqV66lT30CrXNbEjx4GEwlow3v6rr4mCcv6prnfwhS01rkgyFdjPNBYd9br7LpXV1+Emh01fHnq2Gdgrw==
+
 ts-node@^10.9.2:
   version "10.9.2"
   resolved "https://registry.npmjs.org/ts-node/-/ts-node-10.9.2.tgz"
@@ -1054,6 +1136,19 @@ vary@^1.1.2:
   version "1.1.2"
   resolved "https://registry.npmjs.org/vary/-/vary-1.1.2.tgz"
   integrity sha512-BNGbWLfd0eUPabhkXUVm0j8uuvREyTh5ovRa/dyow/BqAbZJyC+5fU+IzQOzmAKzYqYRAISoRhdQr3eIZ/PXqg==
+
+webidl-conversions@^3.0.0:
+  version "3.0.1"
+  resolved "https://registry.npmjs.org/webidl-conversions/-/webidl-conversions-3.0.1.tgz"
+  integrity sha512-2JAn3z8AR6rjK8Sm8orRC0h/bcl/DqL7tRPdGZ4I1CjdF+EaMLmYxBHyXuKL849eucPFhvBoxMsflfOb8kxaeQ==
+
+whatwg-url@^5.0.0:
+  version "5.0.0"
+  resolved "https://registry.npmjs.org/whatwg-url/-/whatwg-url-5.0.0.tgz"
+  integrity sha512-saE57nupxk6v3HY35+jzBwYa0rKSy0XR8JSxZPwgLr7ys0IBzhGviA1/TUGJLmSVqs8pb9AnvICXEuOHLprYTw==
+  dependencies:
+    tr46 "~0.0.3"
+    webidl-conversions "^3.0.0"
 
 wrappy@1:
   version "1.0.2"
