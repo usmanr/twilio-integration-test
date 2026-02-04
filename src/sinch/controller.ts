@@ -63,14 +63,7 @@ export const handleSinchEvent = async (req: Request, res: Response) => {
 
 // 1. STEP 1: Incoming call → Tradie lookup → Prompt 1 + set cookie
 function handleIncomingCall(event: SinchEvent, res: Response) {
-  const instruction = 'Thank you for calling your Sinch number. You have just handled an incoming call.';
 
-  return res.json(new Voice.IceSvamletBuilder()
-    .setAction(Voice.iceActionHelper.hangup())
-    .addInstruction(Voice.iceInstructionHelper.say(instruction))
-    .build());
-    
-  const toNumber = event.destination || event.cli?.identity || '';
   const tradie = { id: 'John-Smith', name: 'John Plumbing' }
 
   if (!tradie) {
@@ -82,35 +75,29 @@ function handleIncomingCall(event: SinchEvent, res: Response) {
 
   callSessions.set(callId, createSession(callId));
 
-  const svaml = {
-    instructions: [
-      { name: 'answer' },
-      { name: 'startRecording', options: { stereo: true } },
-      { name: 'say', text: PROMPTS[1].replace('${tradie.name}', tradie.name || ' the service ') }
-    ],
-    action: {
-      name: 'runMenu',
-      prompts: [{ type: 'tts' }],
-      maxDigits: 0,
-      barge: true,
-      aiEnabled: true
-    },
-    custom: { 
-      step: 1
-    },
-  };
+  const svaml = new Voice.IceSvamletBuilder()
+    .addInstruction(Voice.iceInstructionHelper.answer())
+    .addInstruction(Voice.iceInstructionHelper.setCookie('step', '1'))
+    .addInstruction(Voice.iceInstructionHelper.say(PROMPTS[1].replace('${tradie.name}', tradie.name || ' the service ')))
+    .setAction(
+      Voice.iceActionHelper.runMenu({
+        barge: false,
+        enableVoice: true
+      })
+    )
+    .build();
 
   res.json(svaml);
 }
 
 
-// 2. PROMPT RESPONSE: Process input → Advance step via custom/cookie
+// 2. PROMPT RESPONSE: Process input → Advance step via cookie
 function handlePromptInput(event: SinchEvent, res: Response): void {
   const callId = event.callId;
-  const step = event.custom?.step as number; // e.g. 1
+  const step = event.cookie ? parseInt(event.cookie) : 1; // Read from cookie
 
   if (!step || step > 3) {
-    res.status(400).send('Missing custom params');
+    res.status(400).send('Missing or invalid step in cookie');
     return;
   }
 
@@ -137,16 +124,16 @@ function createSession(callId: string): CallSession {
 
 function sendPromptForStep(step: number, session: CallSession, res: Response): void {
   const tradie = { id: 'John-Smith', name: 'John Plumbing' }
-  const svaml = {
-    instructions: [
-      { name: 'continue' },
-      { name: 'say', text: PROMPTS[step].replace('${tradie.name}', tradie.name || ' the service ') }
-    ],
-    action: { name: 'runMenu', maxDigits: 0, barge: true, aiEnabled: true },
-    custom: {
-      step
-    }
-  };
+  const svaml = new Voice.PieSvamletBuilder()
+    .addInstruction(Voice.pieInstructionHelper.setCookie('step', step.toString()))
+    .addInstruction(Voice.pieInstructionHelper.say(PROMPTS[step].replace('${tradie.name}', tradie.name || ' the service ')))
+    .setAction(
+      Voice.pieActionHelper.runMenu({
+        barge: false,
+        enableVoice: true
+      })
+    )
+    .build();
   res.json(svaml);
 }
 
@@ -168,13 +155,11 @@ function completeCall(session: CallSession, res: Response): void {
     body: JSON.stringify(jobData)
   }).catch(console.error);*/
 
-  const svaml = {
-    instructions: [
-      { name: 'say', text: `Thanks! Job logged for ${tradie.name}. Goodbye.` },
-      { name: 'stopRecording' },
-      { name: 'hangup' }
-    ]
-  };
+  const svaml = new Voice.PieSvamletBuilder()
+    .addInstruction(Voice.pieInstructionHelper.say(`Thanks! Job logged for ${tradie.name}. Goodbye.`))
+    .addInstruction(Voice.pieInstructionHelper.stopRecording())
+    .setAction(Voice.pieActionHelper.hangup())
+    .build();
 
   callSessions.delete(session.callId);
   res.json(svaml);
