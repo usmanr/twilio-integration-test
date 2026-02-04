@@ -82,7 +82,6 @@ function handleIncomingCall(event: SinchEvent, res: Response) {
 
   callSessions.set(callId, createSession(callId));
 
-  // Get recording config from environment
   const recordingDestination = process.env.SINCH_RECORDINGS_DESTINATION_URL_BASE || '';
   const recordingCredentials = process.env.DESTINATION_CREDENTIALS || '';
 
@@ -90,7 +89,7 @@ function handleIncomingCall(event: SinchEvent, res: Response) {
     .addInstruction(Voice.iceInstructionHelper.answer())
     .addInstruction(
       Voice.iceInstructionHelper.startRecording({
-        destinationUrl: recordingDestination,
+        destinationUrl: `${recordingDestination}callid.mp3`,
         credentials: recordingCredentials,
         format: 'mp3',
         notificationEvents: true,
