@@ -1,4 +1,5 @@
 import { Request, Response } from "express";
+import { Voice } from '@sinch/sdk-core';
 
 interface CallSession {
   data: {
@@ -61,7 +62,14 @@ export const handleSinchEvent = async (req: Request, res: Response) => {
 }
 
 // 1. STEP 1: Incoming call → Tradie lookup → Prompt 1 + set cookie
-function handleIncomingCall(event: SinchEvent, res: Response): void {
+function handleIncomingCall(event: SinchEvent, res: Response) {
+  const instruction = 'Thank you for calling your Sinch number. You have just handled an incoming call.';
+
+  return res.json(new Voice.IceSvamletBuilder()
+    .setAction(Voice.iceActionHelper.hangup())
+    .addInstruction(Voice.iceInstructionHelper.say(instruction))
+    .build());
+    
   const toNumber = event.destination || event.cli?.identity || '';
   const tradie = { id: 'John-Smith', name: 'John Plumbing' }
 
