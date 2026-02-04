@@ -82,7 +82,14 @@ function handleIncomingCall(event: SinchEvent, res: Response) {
     .setAction(
       Voice.iceActionHelper.runMenu({
         barge: false,
-        enableVoice: true
+        enableVoice: true,
+        menus: [
+          {
+            id: 'main',
+            maxDigits: 0, // No DTMF input, voice only
+            timeoutMills: 5000 // 5 second timeout for voice input
+          }
+        ]
       })
     )
     .build();
@@ -130,7 +137,14 @@ function sendPromptForStep(step: number, session: CallSession, res: Response): v
     .setAction(
       Voice.pieActionHelper.runMenu({
         barge: false,
-        enableVoice: true
+        enableVoice: true,
+        menus: [
+          {
+            id: 'main',
+            maxDigits: 0, // No DTMF input, voice only
+            timeoutMills: 5000 // 5 second timeout for voice input
+          }
+        ]
       })
     )
     .build();
