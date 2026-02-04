@@ -94,6 +94,7 @@ function handleIncomingCall(event: SinchEvent, res: Response) {
     )
     .build();
 
+  console.log('📤 ICE Response SVAML:', JSON.stringify(svaml, null, 2));
   res.json(svaml);
 }
 
@@ -148,6 +149,7 @@ function sendPromptForStep(step: number, session: CallSession, res: Response): v
       })
     )
     .build();
+  console.log('📤 PIE Response SVAML (Step ' + step + '):', JSON.stringify(svaml, null, 2));
   res.json(svaml);
 }
 
@@ -175,7 +177,8 @@ function completeCall(session: CallSession, res: Response): void {
     .setAction(Voice.pieActionHelper.hangup())
     .build();
 
-  callSessions.delete(session.callId);
+  console.log('📤 Completion SVAML:', JSON.stringify(svaml, null, 2));
+  // callSessions.delete(session.callId);
   res.json(svaml);
 }
 
