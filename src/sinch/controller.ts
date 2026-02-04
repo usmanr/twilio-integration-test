@@ -17,12 +17,16 @@ interface CallSession {
 
 interface SinchEvent {
   event: string;
-  callId: string;
+  callId?: string;
+  callid?: string; // Sinch uses lowercase 'callid' in actual payload
   cli?: { identity: string };
   destination?: string;
   input?: { value: string } | { speech: string };
-  custom?: Record<string, any>;
-  cookie?: string;
+  cookies?: Array<{ key: string; value: string }>; // Actual format Sinch uses
+  menuResult?: any;
+  timestamp?: string;
+  version?: number;
+  applicationKey?: string;
   aiAnalysis?: any; // Sinch AI metadata
 }
 
@@ -74,16 +78,20 @@ function handleIncomingCall(event: SinchEvent, res: Response) {
     return;
   }
 
-  const callId = event.callId;
+  const callId = event.callId || event.callid || '';
 
   callSessions.set(callId, createSession(callId));
+
+  // Get recording config from environment
+  const recordingDestination = process.env.SINCH_RECORDINGS_DESTINATION_URL_BASE || '';
+  const recordingCredentials = process.env.DESTINATION_CREDENTIALS || '';
 
   const svaml = new Voice.IceSvamletBuilder()
     .addInstruction(Voice.iceInstructionHelper.answer())
     .addInstruction(
       Voice.iceInstructionHelper.startRecording({
-        destinationUrl: process.env.SINCH_RECORDINGS_DESTINATION_URL_BASE || '',
-        credentials: process.env.DESTINATION_CREDENTIALS || '',
+        destinationUrl: recordingDestination,
+        credentials: recordingCredentials,
         format: 'mp3',
         notificationEvents: true,
         transcriptionOptions: {
@@ -112,6 +120,7 @@ function handleIncomingCall(event: SinchEvent, res: Response) {
     )
     .build();
 
+
   console.log('📤 ICE Response SVAML:', JSON.stringify(svaml, null, 2));
   res.json(svaml);
 }
@@ -119,32 +128,23 @@ function handleIncomingCall(event: SinchEvent, res: Response) {
 
 // 2. PROMPT RESPONSE: Process input → Advance step via cookie
 function handlePromptInput(event: SinchEvent, res: Response): void {
-  const callId = event.callId;
+  const callId = event.callId || event.callid || '';
 
-  // Debug: Log the cookie to see its format
-  console.log('🍪 Cookie received:', event.cookie);
-  console.log('🍪 Cookie type:', typeof event.cookie);
-
-  // Parse step from cookie - Sinch may send it as "step=1" or just "1"
+  // Debug: Log what Sinch sends
+  console.log('🍪 Cookies array received:', JSON.stringify(event.cookies));
+  // Try to get step from multiple sources
   let step = 1; // Default to step 1
-  if (event.cookie) {
-    // Try to parse as JSON first (in case it's {"step":"1"})
-    try {
-      const parsed = JSON.parse(event.cookie);
-      step = parseInt(parsed.step || parsed);
-    } catch {
-      // If not JSON, try parsing as "key=value" format
-      if (event.cookie.includes('=')) {
-        const match = event.cookie.match(/step=(\d+)/);
-        step = match ? parseInt(match[1]) : parseInt(event.cookie);
-      } else {
-        // Otherwise treat the whole cookie as the value
-        step = parseInt(event.cookie);
-      }
+
+  // First try: Check cookies array (actual Sinch format)
+  if (event.cookies && Array.isArray(event.cookies)) {
+    const stepCookie = event.cookies.find(c => c.key === 'step');
+    if (stepCookie) {
+      step = parseInt(stepCookie.value);
+      console.log('✅ Got step from cookies array:', step);
     }
   }
 
-  console.log('📊 Parsed step value:', step);
+  console.log('📊 Final parsed step value:', step);
 
   if (!step || step > 3) {
     res.status(400).send('Missing or invalid step in cookie');
@@ -194,8 +194,15 @@ function sendPromptForStep(step: number, session: CallSession, res: Response): v
       })
     )
     .build();
-  console.log('📤 PIE Response SVAML (Step ' + step + '):', JSON.stringify(svaml, null, 2));
-  res.json(svaml);
+
+  // Add custom field manually as a backup for state tracking
+  const svamlWithCustom = {
+    ...svaml,
+    custom: { step }
+  };
+
+  console.log('📤 PIE Response SVAML (Step ' + step + '):', JSON.stringify(svamlWithCustom, null, 2));
+  res.json(svamlWithCustom);
 }
 
 
