@@ -1,5 +1,8 @@
 import { Request, Response } from "express";
 import { Voice } from '@sinch/sdk-core';
+import dotenv from 'dotenv';
+
+dotenv.config();
 
 interface CallSession {
   data: {
@@ -77,8 +80,23 @@ function handleIncomingCall(event: SinchEvent, res: Response) {
 
   const svaml = new Voice.IceSvamletBuilder()
     .addInstruction(Voice.iceInstructionHelper.answer())
+    .addInstruction(
+      Voice.iceInstructionHelper.startRecording({
+        destinationUrl: process.env.SINCH_RECORDINGS_DESTINATION_URL_BASE || '',
+        credentials: process.env.DESTINATION_CREDENTIALS || '',
+        format: 'mp3',
+        notificationEvents: true,
+        transcriptionOptions: {
+          enabled: true,
+          locale: 'en-AU'
+        }
+      })
+    )
     .addInstruction(Voice.iceInstructionHelper.setCookie('step', '1'))
-    .addInstruction(Voice.iceInstructionHelper.say(PROMPTS[1].replace('${tradie.name}', tradie.name || ' the service ')))
+    .addInstruction(Voice.iceInstructionHelper.say(
+      PROMPTS[1].replace('${tradie.name}', tradie.name || ' the service '),
+      'Olivia' // Natural-sounding Australian female voice
+    ))
     .setAction(
       Voice.iceActionHelper.runMenu({
         barge: false,
@@ -87,7 +105,7 @@ function handleIncomingCall(event: SinchEvent, res: Response) {
           {
             id: 'main',
             maxDigits: 0, // No DTMF input, voice only
-            timeoutMills: 5000 // 5 second timeout for voice input
+            timeoutMills: 2000 // 2 second timeout for voice input
           }
         ]
       })
@@ -102,7 +120,31 @@ function handleIncomingCall(event: SinchEvent, res: Response) {
 // 2. PROMPT RESPONSE: Process input → Advance step via cookie
 function handlePromptInput(event: SinchEvent, res: Response): void {
   const callId = event.callId;
-  const step = event.cookie ? parseInt(event.cookie) : 1; // Read from cookie
+
+  // Debug: Log the cookie to see its format
+  console.log('🍪 Cookie received:', event.cookie);
+  console.log('🍪 Cookie type:', typeof event.cookie);
+
+  // Parse step from cookie - Sinch may send it as "step=1" or just "1"
+  let step = 1; // Default to step 1
+  if (event.cookie) {
+    // Try to parse as JSON first (in case it's {"step":"1"})
+    try {
+      const parsed = JSON.parse(event.cookie);
+      step = parseInt(parsed.step || parsed);
+    } catch {
+      // If not JSON, try parsing as "key=value" format
+      if (event.cookie.includes('=')) {
+        const match = event.cookie.match(/step=(\d+)/);
+        step = match ? parseInt(match[1]) : parseInt(event.cookie);
+      } else {
+        // Otherwise treat the whole cookie as the value
+        step = parseInt(event.cookie);
+      }
+    }
+  }
+
+  console.log('📊 Parsed step value:', step);
 
   if (!step || step > 3) {
     res.status(400).send('Missing or invalid step in cookie');
@@ -134,7 +176,10 @@ function sendPromptForStep(step: number, session: CallSession, res: Response): v
   const tradie = { id: 'John-Smith', name: 'John Plumbing' }
   const svaml = new Voice.PieSvamletBuilder()
     .addInstruction(Voice.pieInstructionHelper.setCookie('step', step.toString()))
-    .addInstruction(Voice.pieInstructionHelper.say(PROMPTS[step].replace('${tradie.name}', tradie.name || ' the service ')))
+    .addInstruction(Voice.pieInstructionHelper.say(
+      PROMPTS[step].replace('${tradie.name}', tradie.name || ' the service '),
+      'Olivia' // Natural-sounding Australian female voice
+    ))
     .setAction(
       Voice.pieActionHelper.runMenu({
         barge: false,
@@ -172,7 +217,10 @@ function completeCall(session: CallSession, res: Response): void {
   }).catch(console.error);*/
 
   const svaml = new Voice.PieSvamletBuilder()
-    .addInstruction(Voice.pieInstructionHelper.say(`Thanks! Job logged for ${tradie.name}. Goodbye.`))
+    .addInstruction(Voice.pieInstructionHelper.say(
+      `Thanks! Job logged for ${tradie.name}. Goodbye.`,
+      'Olivia' // Natural-sounding Australian female voice
+    ))
     .addInstruction(Voice.pieInstructionHelper.stopRecording())
     .setAction(Voice.pieActionHelper.hangup())
     .build();
