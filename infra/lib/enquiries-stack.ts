@@ -10,6 +10,7 @@ import { Construct } from "constructs";
 import * as path from "path";
 
 export class EnquiriesStack extends cdk.Stack {
+  public readonly api: apigwv2.HttpApi;
   constructor(scope: Construct, id: string, props?: cdk.StackProps) {
     super(scope, id, props);
 
@@ -67,32 +68,36 @@ export class EnquiriesStack extends cdk.Stack {
     );
 
     // HTTP API Gateway v2
-    const api = new apigwv2.HttpApi(this, "EnquiriesApi", {
+    this.api = new apigwv2.HttpApi(this, "EnquiriesApi", {
       apiName: "EnquiriesService",
       corsPreflight: {
         allowOrigins: ["*"],
-        allowMethods: [apigwv2.CorsHttpMethod.GET, apigwv2.CorsHttpMethod.POST],
+        allowMethods: [
+          apigwv2.CorsHttpMethod.GET,
+          apigwv2.CorsHttpMethod.POST,
+          apigwv2.CorsHttpMethod.PATCH,
+        ],
         allowHeaders: ["Content-Type", "x-api-key"],
       },
     });
 
     const integration = new HttpLambdaIntegration("EnquiriesIntegration", fn);
 
-    api.addRoutes({
+    this.api.addRoutes({
       path: "/enquiries",
       methods: [apigwv2.HttpMethod.GET, apigwv2.HttpMethod.POST],
       integration,
     });
 
-    api.addRoutes({
+    this.api.addRoutes({
       path: "/enquiries/{id}",
-      methods: [apigwv2.HttpMethod.GET],
+      methods: [apigwv2.HttpMethod.GET, apigwv2.HttpMethod.PATCH],
       integration,
     });
 
     // Outputs
     new cdk.CfnOutput(this, "ApiUrl", {
-      value: api.apiEndpoint,
+      value: this.api.apiEndpoint,
       description: "HTTP API endpoint URL",
     });
 

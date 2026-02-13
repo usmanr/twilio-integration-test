@@ -1,5 +1,5 @@
 import { v4 as uuidv4 } from "uuid";
-import { Enquiry, CreateEnquiryRequestSchema } from "./schema";
+import { Enquiry, CreateEnquiryRequestSchema, UpdateEnquiryRequestSchema } from "./schema";
 import { EnquiryRepository, createRepository } from "./repository";
 import { extractFieldsFromTranscript } from "./extractor";
 
@@ -58,4 +58,24 @@ export async function createEnquiry(
   await getRepo().put(enquiry);
 
   return { enquiry };
+}
+
+export async function updateEnquiry(
+  id: string,
+  body: unknown,
+): Promise<{ enquiry: Enquiry } | { error: string; details?: unknown }> {
+  const existing = await getRepo().getById(id);
+  if (!existing) {
+    return { error: "Enquiry not found" };
+  }
+
+  const parsed = UpdateEnquiryRequestSchema.safeParse(body);
+  if (!parsed.success) {
+    return { error: "Invalid request body", details: parsed.error.format() };
+  }
+
+  const updated: Enquiry = { ...existing, ...parsed.data };
+  await getRepo().update(updated);
+
+  return { enquiry: { ...updated, updatedAt: new Date().toISOString() } };
 }

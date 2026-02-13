@@ -1,16 +1,5 @@
 import axios from "axios";
-
-// MOCK STATEFUL DATABASE
-interface CallRecord {
-  callSid: string;
-  from: string;
-  to: string;
-  status: string;
-  recordingUrl?: string;
-  recordingStatus?: string;
-  transcript?: string;
-  steps?: { name: string, text: string}[]
-}
+import { createCallRepository, CallRepository } from "./call-repository";
 
 // MOCK DATABASE
 interface Tradie {
@@ -20,8 +9,6 @@ interface Tradie {
   realMobile: string;
   autoCreateJobs: boolean;
 }
-
-const MOCK_CALLS: CallRecord[] = [];
 
 const MOCK_TRADIES: Tradie[] = [
   {
@@ -33,56 +20,26 @@ const MOCK_TRADIES: Tradie[] = [
   },
 ];
 
+const callRepo: CallRepository = createCallRepository();
+
 export const db = {
   getTradieByVirtualNumber: async (virtualNumber: string): Promise<Tradie | null> => {
     return MOCK_TRADIES[0];
   },
 
-  logCall: async (callSid: string, from: string, to: string, status: string) => {
-    console.log(`[DB] Logged Call ${callSid}: ${status}. From: ${from}, To: ${to}`);
-    const existing = MOCK_CALLS.find(c => c.callSid === callSid);
-    if (existing) {
-      existing.status = status;
-    } else {
-      MOCK_CALLS.push({ callSid, from, to, status });
-    }
-  },
+  logCall: (callSid: string, from: string, to: string, status: string) =>
+    callRepo.logCall(callSid, from, to, status),
 
-  addRecording: async (callSid: string, recordingUrl: string, recordingStatus: string) => {
-    console.log(`[DB] Added recording for ${callSid}: ${recordingUrl}`);
-    const call = MOCK_CALLS.find(c => c.callSid === callSid);
-    if (call) {
-      call.recordingUrl = recordingUrl;
-      call.recordingStatus = recordingStatus;
-    }
-  },
+  addRecording: (callSid: string, recordingUrl: string, recordingStatus: string) =>
+    callRepo.addRecording(callSid, recordingUrl, recordingStatus),
 
-  updateCallRecord: async (callSid: string, data: Partial<CallRecord>) => {
-    console.log(`[DB] Updated Call ${callSid}:`, data);
-    const call = MOCK_CALLS.find(c => c.callSid === callSid);
-    
-    if (call) {
-      // Special handling for appending steps to the collection
-      if (data.steps) {
-        if (!call.steps) {
-          call.steps = [];
-        }
-        call.steps.push(...data.steps);
-        delete data.steps; // Remove from data to avoid overwrite by Object.assign
-      }
-      Object.assign(call, data);
-    } else {
-      MOCK_CALLS.push({ callSid, from: '', to: '', status: 'PROCESSING', ...data });
-    }
-  },
+  updateCallRecord: (callSid: string, data: Record<string, any>) =>
+    callRepo.updateCallRecord(callSid, data),
 
-  getCallRecord: async (callSid: string): Promise<CallRecord | null> => {
-    console.log(`[DB] Getting record for ${callSid}`);
-    return MOCK_CALLS.find(c => c.callSid === callSid) || null;
-  },
-  getAllCalls: () => {
-    return MOCK_CALLS;
-  },
+  getCallRecord: (callSid: string) =>
+    callRepo.getCallRecord(callSid),
+
+  getAllCalls: () => callRepo.getAllCalls(),
 };
 
 // MOCK AI SERVICE

@@ -1,5 +1,5 @@
 import { APIGatewayProxyEventV2, APIGatewayProxyResultV2 } from 'aws-lambda';
-import { listEnquiries, getEnquiryById, createEnquiry } from './controller';
+import { listEnquiries, getEnquiryById, createEnquiry, updateEnquiry } from './controller';
 import { validateApiKey } from './auth';
 
 export const handler = async (
@@ -38,6 +38,20 @@ export const handler = async (
         return { statusCode: 400, body: JSON.stringify(result) };
       }
       return { statusCode: 201, body: JSON.stringify(result.enquiry) };
+    }
+
+    if (method === 'PATCH' && path.startsWith('/enquiries/')) {
+      const id = path.split('/enquiries/')[1];
+      if (!id) {
+        return { statusCode: 400, body: JSON.stringify({ error: 'Missing id' }) };
+      }
+      const body = event.body ? JSON.parse(event.body) : {};
+      const result = await updateEnquiry(id, body);
+      if ('error' in result) {
+        const statusCode = result.error === 'Enquiry not found' ? 404 : 400;
+        return { statusCode, body: JSON.stringify(result) };
+      }
+      return { statusCode: 200, body: JSON.stringify(result.enquiry) };
     }
 
     return { statusCode: 404, body: JSON.stringify({ error: 'Route not found' }) };

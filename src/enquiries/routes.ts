@@ -1,5 +1,5 @@
 import { Router, Request, Response } from 'express';
-import { listEnquiries, getEnquiryById, createEnquiry } from './controller';
+import { listEnquiries, getEnquiryById, createEnquiry, updateEnquiry } from './controller';
 import { requireApiKey } from './auth';
 
 const router = Router();
@@ -28,6 +28,17 @@ router.post('/', async (req: Request, res: Response) => {
     return;
   }
   res.status(201).json(result.enquiry);
+});
+
+router.patch('/:id', async (req: Request, res: Response) => {
+  const id = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
+  const result = await updateEnquiry(id, req.body);
+  if ('error' in result) {
+    const status = result.error === 'Enquiry not found' ? 404 : 400;
+    res.status(status).json(result);
+    return;
+  }
+  res.json(result.enquiry);
 });
 
 export default router;

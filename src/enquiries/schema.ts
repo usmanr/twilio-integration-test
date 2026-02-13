@@ -53,3 +53,14 @@ export const CreateEnquiryRequestSchema = z.object({
 });
 
 export type CreateEnquiryRequest = z.infer<typeof CreateEnquiryRequestSchema>;
+
+export const UpdateEnquiryRequestSchema = z.object({
+  customerFirstName: z.string().nullable().optional(),
+  customerLastName: z.string().nullable().optional(),
+  customerEmail: z.string().nullable().optional(),
+  customerAddress: z.string().nullable().optional(),
+  jobDescription: z.string().optional(),
+  jobCategory: z.string().nullable().optional(),
+  urgency: z.enum(["ASAP", "This week", "This month", "Flexible"]).nullable().optional(),
+  status: z.enum(["new", "viewed", "contacted", "converted", "archived"]).optional(),
+});
