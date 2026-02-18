@@ -14,6 +14,7 @@ Extract the following fields and return ONLY a valid JSON object with the follow
 Rules:
 - If a field cannot be determined from the transcript, set it to null.
 - Do NOT hallucinate information that is not in the transcript.
+- Include all relevant details in the jobDescription field, do not omit any information.
 - For email addresses, reconstruct them from spelled-out text if needed (e.g. "u s m a n r at gmail dot com" -> "usmanr@gmail.com").
 - For phone numbers in the transcript, ignore them as contact details (those come from caller ID).
 - Infer urgency from context clues (e.g. "as soon as possible" = "ASAP", "no rush" = "Flexible").

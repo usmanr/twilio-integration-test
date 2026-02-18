@@ -3,6 +3,7 @@ import * as dynamodb from "aws-cdk-lib/aws-dynamodb";
 import * as lambda from "aws-cdk-lib/aws-lambda";
 import * as apigwv2 from "aws-cdk-lib/aws-apigatewayv2";
 import * as iam from "aws-cdk-lib/aws-iam";
+import * as s3 from "aws-cdk-lib/aws-s3";
 import { HttpLambdaIntegration } from "aws-cdk-lib/aws-apigatewayv2-integrations";
 import { Construct } from "constructs";
 import * as path from "path";
@@ -23,35 +24,41 @@ export class EnquiriesAgentStack extends cdk.Stack {
       removalPolicy: cdk.RemovalPolicy.RETAIN,
     });
 
-    // Python Lambda Function
-    const fn = new lambda.Function(this, "EnquiryAgentHandler", {
-      runtime: lambda.Runtime.PYTHON_3_12,
-      handler: "enquiry_agent.handler.handler",
-      code: lambda.Code.fromAsset(
-        path.join(__dirname, "../../EnquiryAgent"),
+    // S3 Bucket for Strands Agent session persistence
+    const sessionBucket = new s3.Bucket(this, "AgentSessionBucket", {
+      removalPolicy: cdk.RemovalPolicy.RETAIN,
+      encryption: s3.BucketEncryption.S3_MANAGED,
+      lifecycleRules: [
         {
-          bundling: {
-            image: lambda.Runtime.PYTHON_3_12.bundlingImage,
-            command: [
-              "bash",
-              "-c",
-              "pip install -r requirements.txt -t /asset-output && cp -r enquiry_agent /asset-output/",
-            ],
-          },
+          expiration: cdk.Duration.days(30),
+          prefix: "calls/",
         },
+      ],
+    });
+
+    // Python Lambda Function (Docker image)
+    const fn = new lambda.DockerImageFunction(this, "EnquiryAgentHandler", {
+      code: lambda.DockerImageCode.fromImageAsset(
+        path.join(__dirname, "../../EnquiryAgent"),
       ),
       timeout: cdk.Duration.seconds(60),
-      memorySize: 512,
+      memorySize: 1024,
+      architecture: lambda.Architecture.ARM_64,
       environment: {
         ENQUIRIES_API_URL: props.enquiriesApiUrl,
         TWILIO_CALLS_TABLE_NAME: table.tableName,
+        AGENT_SESSION_BUCKET: sessionBucket.bucketName,
+        ENQUIRIES_API_KEY: "TMFUnTI9T41Ka2FDEZZnPYXnDmuN44JNiheIToJhVSgAzwE2", // For simplicity, hardcoding the API key here. In production, consider using Secrets Manager.
       },
     });
 
     // IAM: DynamoDB access
     table.grantReadWriteData(fn);
 
-    // IAM: Bedrock InvokeModel (for ai_polisher via Strands Agents)
+    // IAM: S3 session bucket access
+    sessionBucket.grantReadWrite(fn);
+
+    // IAM: Bedrock InvokeModel (for Strands Agent and ai_polisher)
     fn.addToRolePolicy(
       new iam.PolicyStatement({
         actions: [
@@ -67,10 +74,7 @@ export class EnquiriesAgentStack extends cdk.Stack {
       apiName: "EnquiryAgentWebhooks",
       corsPreflight: {
         allowOrigins: ["*"],
-        allowMethods: [
-          apigwv2.CorsHttpMethod.GET,
-          apigwv2.CorsHttpMethod.POST,
-        ],
+        allowMethods: [apigwv2.CorsHttpMethod.GET, apigwv2.CorsHttpMethod.POST],
         allowHeaders: ["Content-Type"],
       },
     });
@@ -139,6 +143,11 @@ export class EnquiriesAgentStack extends cdk.Stack {
 
     new cdk.CfnOutput(this, "TableName", {
       value: table.tableName,
+    });
+
+    new cdk.CfnOutput(this, "SessionBucketName", {
+      value: sessionBucket.bucketName,
+      description: "S3 bucket for Strands Agent session persistence",
     });
   }
 }

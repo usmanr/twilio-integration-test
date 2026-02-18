@@ -3,23 +3,17 @@ from __future__ import annotations
 import json
 import logging
 import os
-from urllib.request import urlopen, Request
 
 from twilio.twiml.voice_response import VoiceResponse
 
 from .services import db
 from .ai_polisher import polish_transcript
+from .enquiries_agent import create_enquiry_agent
 
 logger = logging.getLogger(__name__)
 
 VOICE = "Google.en-AU-Neural2-C"
 LANGUAGE = "en-AU"
-
-PROMPTS: dict[int, str] = {
-    1: "Hi, thanks for calling ${tradie.name}. In a few words, please describe the work you want done.",
-    2: "Thank you. To make sure we log your job with the correct details, please clearly state your full name, best contact number, and the property address.",
-    3: "Right. Anything else you want me to note?",
-}
 
 
 def _base_url() -> str:
@@ -111,6 +105,7 @@ async def handle_va_incoming_call(req: dict, res: dict) -> None:
     call_sid = body.get("callsid", "")
 
     tradie = await db.get_tradie_by_virtual_number(to_number)
+    tradie_name = tradie.name if tradie else ""
 
     twiml = VoiceResponse()
     start = twiml.start()
@@ -122,25 +117,30 @@ async def handle_va_incoming_call(req: dict, res: dict) -> None:
         recording_status_callback_event="in-progress completed absent",
     )
 
-    if not tradie:
-        twiml.say("We could not connect your call. Please check the number.", voice=VOICE, language=LANGUAGE)
-        res["content_type"] = "text/xml"
-        res["body"] = str(twiml)
-        return
+    await db.log_call(call_sid, from_number, to_number, "VA_RECEIVED")
+
+    # Create agent (initialises S3 session) and generate the greeting
+    agent, _ = create_enquiry_agent(call_sid, from_number, to_number, tradie_name)
+
+    if tradie:
+        result = agent("New incoming call. Greet the caller and ask what work they need done.")
+    else:
+        result = agent(
+            "New incoming call, but the phone number they dialled is not assigned to any business. "
+            "Politely let the caller know and ask them to check the number."
+        )
+
+    response_text = str(result)
 
     hints = ",".join([
         "electrician", "power point", "switchboard",
-        "lighting", "rewire", "safety switch", tradie.name,
+        "lighting", "rewire", "safety switch",
+        *([] if not tradie_name else [tradie_name]),
     ])
 
-    await db.log_call(call_sid, from_number, to_number, "VA_RECEIVED")
-
-    prompt1 = PROMPTS[1].replace("${tradie.name}", tradie.name or "the service")
-    twiml.say(prompt1, voice=VOICE, language=LANGUAGE)
-
-    twiml.gather(
+    gather = twiml.gather(
         input="speech",
-        action=f"{_base_url()}/webhooks/voice/va-transcription-available?step=job-details",
+        action=f"{_base_url()}/webhooks/voice/va-transcription-available",
         action_on_empty_result=True,
         method="POST",
         language=LANGUAGE,
@@ -149,6 +149,7 @@ async def handle_va_incoming_call(req: dict, res: dict) -> None:
         hints=hints,
         speech_timeout="3",
     )
+    gather.say(response_text, voice=VOICE, language=LANGUAGE)
 
     res["content_type"] = "text/xml"
     res["body"] = str(twiml)
@@ -172,103 +173,53 @@ async def handle_va_recording_available(req: dict, res: dict) -> None:
 
 async def handle_va_transcription_available(req: dict, res: dict) -> None:
     logger.info("handleVaTranscriptionAvailable: %s", json.dumps(req["body"], indent=2))
-    query = req.get("query", {})
-    step = query.get("step", "")
     body = req["body"]
     call_sid = body.get("callsid", "")
-    transcription_text = body.get("speechresult", "")
     to_number = body.get("to", "")
+    from_number = body.get("from", "")
 
+    # SpeechResult is absent (not empty) when actionOnEmptyResult fires with no input
+    speech_result = body.get("speechresult")
+    has_speech = speech_result is not None
+
+    logger.info(
+        '[VA WEBHOOK] Transcription for %s: speech=%s "%s"',
+        call_sid,
+        has_speech,
+        speech_result or "",
+    )
+
+    # Restore the agent from the S3 session and process this turn
+    tradie = await db.get_tradie_by_virtual_number(to_number)
+    tradie_name = tradie.name if tradie else ""
+
+    agent, enquiry_flag = create_enquiry_agent(call_sid, from_number, to_number, tradie_name)
+
+    if has_speech:
+        result = agent(speech_result)
+    else:
+        result = agent("[The caller was silent and did not say anything]")
+
+    response_text = str(result)
     twiml = VoiceResponse()
 
-    if not transcription_text:
-        logger.info("[VA WEBHOOK] Received empty transcription for %s. Ignoring.", call_sid)
-        twiml.say("We did not receive a message. Goodbye.", voice=VOICE, language=LANGUAGE)
+    if enquiry_flag["submitted"]:
+        # Agent called submit_enquiry — conversation is complete
+        twiml.say(response_text, voice=VOICE, language=LANGUAGE)
         twiml.hangup()
-        res["content_type"] = "text/xml"
-        res["body"] = str(twiml)
-        return
-
-    logger.info('[VA WEBHOOK] Step: %s, Received transcription for %s: "%s"', step, call_sid, transcription_text)
-
-    if step == "job-details":
-        await db.update_call_record(call_sid, {
-            "steps": [{"name": "job-details", "text": transcription_text}],
-        })
-        gather = twiml.gather(
-            input="speech",
-            action=f"{_base_url()}/webhooks/voice/va-transcription-available?step=address-details",
-            method="POST",
-            language=LANGUAGE,
-            speech_model="phone_call",
-            enhanced=True,
-            speech_timeout="3",
-        )
-        gather.say(PROMPTS[2], voice=VOICE, language=LANGUAGE)
-
-    elif step == "address-details":
-        await db.update_call_record(call_sid, {
-            "steps": [{"name": "address-details", "text": transcription_text}],
-        })
-        gather = twiml.gather(
-            input="speech",
-            action=f"{_base_url()}/webhooks/voice/va-transcription-available?step=final-notes",
-            method="POST",
-            language=LANGUAGE,
-            speech_model="phone_call",
-            enhanced=True,
-            speech_timeout="3",
-        )
-        gather.say(PROMPTS[3], voice=VOICE, language=LANGUAGE)
-
-    elif step == "final-notes":
-        await db.update_call_record(call_sid, {
-            "steps": [{"name": "final-notes", "text": transcription_text}],
-        })
-
-        call_record = await db.get_call_record(call_sid)
-        full_transcript = (
-            " \n ".join(s["text"] for s in call_record.steps)
-            if call_record and call_record.steps
-            else transcription_text
-        )
-
-        await db.update_call_record(call_sid, {
-            "transcript": full_transcript,
-            "status": "VA_PROCESSED",
-        })
-
-        # Create the enquiry via API
-        enquiries_api_url = os.environ.get("ENQUIRIES_API_URL", "")
-        if enquiries_api_url and call_record:
-            payload = json.dumps({
-                "call_sid": call_record.call_sid,
-                "from": call_record.from_number,
-                "to": call_record.to_number,
-                "status": call_record.status,
-                "steps": call_record.steps,
-                "transcript": full_transcript,
-            }).encode("utf-8")
-            api_req = Request(
-                f"{enquiries_api_url}/enquiries",
-                data=payload,
-                headers={
-                    "x-api-key": os.environ.get("ENQUIRIES_API_KEY", ""),
-                    "Content-Type": "application/json",
-                },
-                method="POST",
-            )
-            try:
-                urlopen(api_req)
-            except Exception:
-                logger.exception("Failed to create enquiry")
-
-        twiml.say("Thank you for the details. We will be in touch shortly. Goodbye.", voice=VOICE, language=LANGUAGE)
-        twiml.hangup()
-
     else:
-        twiml.say("An error occurred. Goodbye.", voice=VOICE, language=LANGUAGE)
-        twiml.hangup()
+        # Continue gathering caller input
+        gather = twiml.gather(
+            input="speech",
+            action=f"{_base_url()}/webhooks/voice/va-transcription-available",
+            action_on_empty_result=True,
+            method="POST",
+            language=LANGUAGE,
+            speech_model="phone_call",
+            enhanced=True,
+            speech_timeout="3",
+        )
+        gather.say(response_text, voice=VOICE, language=LANGUAGE)
 
     res["content_type"] = "text/xml"
     res["body"] = str(twiml)
